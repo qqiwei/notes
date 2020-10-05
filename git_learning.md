@@ -19,7 +19,8 @@ git commit -m "description"
 ```shell
 # personalization configurations
 git config --global alias.resetback "reset HEAD^"
-git config --global alias.logpretty "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
+git config --global alias.logpretty "log --color --graph --pretty=format:'%Cred%h%Creset \
+-%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
 git config --global alias.logoneline "log --color --graph --pretty=oneline --abbrev-commit"
 ```
 
