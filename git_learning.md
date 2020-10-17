@@ -34,7 +34,7 @@ git push -u origin main_the_local_branch
 git remote -v
 
 git remote add origin git@github.com:qqiwei/notes.git
-git branch --set-upstream main origin/main
+git branch --set-upstream-to=origin/main main
 git branch -r 
 git branch -vv
 git branch -d branch_to_be_removed
