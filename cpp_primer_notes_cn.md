@@ -119,13 +119,13 @@ int main()
 
     cout << accumulate(vec.begin(), vec.end(), 0) << endl;  // accumulate from 0
 
-    fill(vec.begin(), vec.end(), 0);  // reset to 0
+    fill(vec.begin(), vec.end(), 0);  // fill with 0
     // fill_n(vec.begin(), vec.size(), 0);
-    if (equal(vec.begin(), vec.end(), vec_another.begin())) 
+    if (equal(vec.begin(), vec.end(), vec_another.begin())) // equality
         cout << "all zeros" << endl;
 
-    fill_n(back_inserter(vec_empty), 10, 0);  // insert ten 0
-    replace(vec_empty.begin(), vec_empty.end(), 0, 1);
+    fill_n(back_inserter(vec_empty), 10, 0);  // fill in n 0
+    replace(vec_empty.begin(), vec_empty.end(), 0, 1); // replace one to another
     cout << vec_empty.size() << endl;
 
     vec_empty.clear();
@@ -133,7 +133,7 @@ int main()
     replace_copy_if(  // replace into 2, if it's even
         vec_another.begin(), vec_another.end(), back_inserter(vec_empty), 
         [=](const int i) { return i % 2 == 1; }, 2);
-    for_each(vec_empty.begin(), vec_empty.end(), 
+    for_each(vec_empty.begin(), vec_empty.end(),  // for each
              [=](const int i) { cout << i << ends; });
     cout << endl;
 
@@ -142,7 +142,7 @@ int main()
              [=](const int i) { cout << i << ends; });
     cout << endl;
     sort(vec_another.begin(), vec_another.end());
-    auto uniqueEnd = unique(vec_another.begin(), vec_another.end());
+    auto uniqueEnd = unique(vec_another.begin(), vec_another.end()); // unique sort
     vec_another.erase(uniqueEnd, vec_another.end());
     for_each(vec_another.begin(), vec_another.end(), 
              [=](const int i) { cout << i << ends; });
@@ -183,9 +183,9 @@ int main() {
 
 1 原生的动态内存管理：使用`new`和`delete`、`delete []`，但智能指针类提供了自动释放资源等机制，将更加安全，而智能指针也提供了符合直觉的接口，比如解引用`*`、解引用并取成员`->`和交换函数`swap`等。
 
-2 智能指针：可以用`new`创建出的指针来初始化一个智能指针，而共享指针`shared_ptr`还支持唯一指针`unique_ptr`所不具有的`make_shared<T>(args)`方法。用另一个共享指针初始化或赋值给一个共享指针时，会增加另一个共享指针的`use_count`（共享指针的`unique`方法基于`use_count`做判断，唯一指针自然不需要提供这两个接口），如果是使用一个唯一指针`unique_ptr`初始化一个共享指针时，符合直觉地，唯一指针的所有权将被接管。两种智能指针都支持类似容器`assign`的重置方法`reset`，额外地，`unique_ptr`的`release`之于`reset()`类似`string`的`length`之于`size`方法。
+2 智能指针：一般可用原生的`new`创建出的动态内存指针来初始化一个智能指针，而共享指针`shared_ptr`还支持唯一指针`unique_ptr`所不具有的`make_shared<T>(args)`方法；用另一个共享指针初始化或赋值给一个共享指针时，会增加另一个共享指针的`use_count`（共享指针的`unique`方法基于`use_count`做判断，唯一指针自然不需要提供这两个接口），如果是使用一个唯一指针`unique_ptr`初始化一个共享指针时，符合直觉地，唯一指针的所有权将被接管。两种智能指针都支持类似容器`assign`的重置方法`reset`，额外地，`unique_ptr`还有一个`release`方法。
 
-3 `deleter`：默认机制将使用`delete`释放内部指针，即默认持有的是动态内存，如果持有的指针指向的不是动态内存，销毁就会报错，但附加一个`deleter`就能用于其他资源的释放。唯一指针附加`deleter`还需要提供可调用类`unique_ptr<T, D> u(p)`，或者还有一个额外对象`unique_ptr<T, D> u(p, d)`。
+3 `deleter`：默认机制将使用`delete`释放内部指针，即默认持有的是动态内存，如果持有的指针指向的不是动态内存，销毁就会报错，但附加一个`deleter`就能用于其他资源的释放。唯一指针的`deleter`需要比共享指针多指定一个可调用对象`unique_ptr<T, D> u(p)`，`u(p, d)`。
 
 ```cpp
 int main()
@@ -193,7 +193,7 @@ int main()
     shared_ptr<int> sp;
     if (!sp) cout << "empty ptr" << endl;
 
-    void called_locally(); // 函数声明
+    void called_locally(); // function declaration
     called_locally();
 }
 
@@ -206,186 +206,165 @@ void called_locally()
 }
 ```
 
-4 弱指针`weak_ptr`：好比寄生在`shared_ptr`上，而`shared_ptr`浑然不知的情况。如果说共享指针的`unique`基于`use_count`，那么这种弱共享的`use_count`和`expired`将基于其寄主。同时，一个名字特别的方法`lock`将返回所基于的共享指针。
+4 弱指针`weak_ptr`：好比寄生在`shared_ptr`上，而`shared_ptr`浑然不知的情况。如果说共享指针的`unique`基于`use_count`，那么这种弱共享的`use_count`和`expired`将基于其寄主。同时，一个名字独特的方法`lock`将返回所基于的共享指针。
 
 5 管理动态数组用的`allocator`类同样也在`memory`包中，一般的使用步骤如下。
 
 ```cpp
 int main()
 {
-    allocator<string> alloc;  // 0.
+    allocator<string> alloc;  // 0. allocator<T>
 
-    int size = 10;  // 1.
+    int size = 10;  // 1. allocate(n)
     auto const begin = alloc.allocate(size);
     auto end = begin;
 
-    alloc.construct(end++);  // 2a.
+    alloc.construct(end++);  // 2a. construct(p++)
     alloc.construct(end++, "str");
     alloc.construct(end++, 3, 'a');
 
-    vector<string> vec{"hello", ", ", "world."};  // 2b.
+    // 2b. uninitialized_copy(beg, end, p)
+    vector<string> vec{"hello", ", ", "world."}; 
     end = uninitialized_copy(vec.begin(), vec.end(), end);
 
     for (size_t i = 0, size = end - begin; i < size; ++i)
         cout << i << " " << begin[i] << endl;
 
-    while (end != begin) alloc.destroy(--end);  // 3.
+    while (end != begin) alloc.destroy(--end);  // 3. destory(--p)
 
-    alloc.deallocate(begin, size); // 4. 
+    alloc.deallocate(begin, size); // 4. deallocate(p, n)
 }
 ```
 
-### 拷贝（析构、交换）与移动
+### 拷贝（构造、赋值、析构）与移动
 
-1 拷贝（构造（初始化）、赋值）：拷贝构造函数的第一个参数是自身类类型的引用（如果不是引用就存在循环自调用），一般为`const`、非`explict`，可以携带默认参数。即使有自定义构造函数，编译器也会帮忙合成拷贝构造函数，可见其特殊性。合成的拷贝构造函数对于其数组类型的成员，将执行逐元素拷贝。除了直接使用，拷贝初始化更重要的作用是实现一种**隐式构造**，包括在函数的非引用参数传递、非引用结果返回与列表初始化（数组或聚合类）的时候。拷贝赋值运算符接受一个与其所属类相同类型的参数（可以不为引用，一般为`const`），返回指向其左侧类型的引用，且编译器同样会默认合成。
+1 拷贝（构造（初始化）、赋值）：拷贝构造函数的第一个参数是自身类类型的引用（如果不是引用就存在循环自调用），一般为`const`、非`explict`，可以携带默认参数，即使有自定义构造函数，编译器也会帮忙合成拷贝构造函数，合成的拷贝构造函数对于其数组类型的成员，将执行逐元素拷贝。拷贝初始化更重要的作用是实现一种**隐式构造**，包括在函数的非引用参数传递、非引用结果返回与列表初始化（数组或聚合类）的时候。拷贝赋值运算符接受一个与其所属类相同类型的参数（可以不为引用，一般为`const`），返回指向其左侧类型的引用，且编译器同样会默认合成，拷贝赋值运算符一般是析构（`this`）和构造（拷贝初始化）过程的结合。
 
-2 析构函数：被自动调用的地方包括变量离开作用域、成员随其对象被销毁、元素随其容器被销毁、动态内存的`delete`以及临时对象随其所在表达式结束的时候；类的初始化可以在初始值列表种指定，但类的析构时隐式的；同时，在继承体系种，派生类要负责基类成员的构造，但却只负责自己分配资源的回收。需要析构（释放动态内存或其他类外资源）的类，一般也需要定义拷贝，来避免指针地址的简单拷贝：不管是如下代码所示的类值的，还是类指针的，两者的区别就是如何拷贝指针成员，前者`new`一个，而后者只是指针地址的赋值，对于类指针的，如果使用智能指针，析构和拷贝就都不需要自定义了。
+2 析构函数：被自动调用的地方包括变量离开作用域、成员随其对象被销毁、元素随其容器被销毁、动态内存的`delete`以及临时对象随其所在表达式结束的时候。析构和构造的区别：类的初始化可以在初始值列表种指定，但类的析构是隐式的；同时，在继承体系中，派生类要负责基类成员的构造，但却只负责自己分配资源的回收。
 
-3 交换函数：`swap`使得**拷贝并交换**这种写法，天然地适合对拷贝赋值进行定义，不论是类值还是类指针的类。PS 我们可以为任何函数提供`=delete`限定，而只能对可以合成的构造或拷贝操作提供`=default`限定。
+3 避免拷贝：需要析构（释放动态内存或其他类外资源）的类，一般也需要定义拷贝，来避免指针地址的简单拷贝：不管是类值还是类指针的（两者的区别就是如何拷贝指针成员，前者`new`一个，而后者只是指针地址的赋值，但需要计数，也即模仿`shared_ptr`）；对于类指针的，如果使用智能指针，析构和拷贝就都不需要自定义了。同样地，为了避免拷贝，我们通常自定义`swap`接口，以最大限度地利用C++那些常量时间复杂度的`swap`函数（库函数是泛型接口，因而可以先`using std::swap`，以优先匹配非泛型的自定义的接口）。最后，**拷贝并交换**这种写法，使得`swap`接口，非常适合用于对拷贝赋值进行定义，不论是类值还是类指针的类。
 
 ```cpp
-// 动态内存管理、拷贝、移动 —— 字符串容器)
 #include "hello.hpp"
+using namespace std;
+class HasPtr {  // value-like
+    friend void swap(HasPtr &, HasPtr &);
 
-class HasPtr {
-    friend void swap(HasPtr&, HasPtr&);
-
-public:
-    string str() { return *ps; }
-    HasPtr(const string& s = string())
-        : ps(new string(s))
-        , i(0)
-    {
-    }
-    HasPtr(const string& s, const int i)
-        : ps(new string(s))
-        , i(i)
-    {
-    }
-    ~HasPtr() { delete ps; }
-    // need copy-definition to new a string
-    HasPtr(const HasPtr& hp)
-        : ps(new string(*hp.ps))
-        , i(0)
-    {
-    }
-    // HasPtr& operator=(const HasPtr& hp)
-    // {
+   public:
+    // default constructor
+    HasPtr(const string &s = string()) : ps(new string(s)), i(0) {}
+    // common constructor
+    HasPtr(const string &s, const int i) : ps(new string(s)), i(i) {}
+    // copy constructor
+    HasPtr(const HasPtr &hp) : ps(new string(*hp.ps)), i(0) {}
+    // copy assignment oprator
+    // HasPtr &operator=(const HasPtr &hp) {
     //     auto newStr = new string(*hp.ps);
-    //     delete ps;  // manually
+    //     // destructor
+    //     delete ps;
+    //     // copy constructor
     //     ps = newStr;
     //     i = hp.i;
     //     return *this;
     // }
-    // copy and swap
-    HasPtr& operator=(HasPtr hp)
-    {
-        void swap(HasPtr&, HasPtr&); // 友元声明不是声明
+    HasPtr &operator=(HasPtr hp) {
+        // void swap(HasPtr &, HasPtr &);  // function declaration
         swap(*this, hp);
         return *this;
     }
+    // destructor
+    ~HasPtr() { delete ps; }
+    // a getter
+    string str() { return *ps; }
 
-private:
-    string* ps;
+   private:
+    string *ps;
     int i;
 };
-inline void swap(HasPtr& hp1, HasPtr& hp2)
-{
-    swap(hp1.ps, hp2.ps);
-    swap(hp1.i, hp2.i);
+inline void swap(HasPtr &hp, HasPtr &hp1) {
+    // using std::swap;  // generic api
+    swap(hp.ps, hp1.ps);
+    swap(hp.i, hp1.i);
 };
 
-class HasPtr2 {
-    friend void swap(HasPtr2&, HasPtr2&);
+class HasPtr2 {  // pointer-like
+    friend void swap(HasPtr2 &, HasPtr2 &);
 
-public:
-    string str() { return *ps; }
-    HasPtr2(const string& s = string())
-        : ps(new string(s))
-        , i(0)
-        , use_count(new size_t(1))
-    {
-    }
-    HasPtr2(const string& s, const int i)
-        : ps(new string(s))
-        , i(i)
-        , use_count(new size_t(1))
-    {
-    }
-    ~HasPtr2()
-    {
-        if (--*use_count == 0) {
-            delete ps;
-            delete use_count;
-        }
-    }
-    HasPtr2(const HasPtr2& hp)
-        : ps(hp.ps)
-        , i(hp.i)
-        , use_count(hp.use_count)
-    {
+   public:
+    // default constructor
+    HasPtr2(const string &s = string())
+        : ps(new string(s)), i(0), use_count(new size_t(1)) {}
+    // common constructor
+    HasPtr2(const string &s, const int i)
+        : ps(new string(s)), i(i), use_count(new size_t(1)) {}
+    // copy constructor
+    HasPtr2(const HasPtr2 &hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) {
         ++*use_count;
     }
-    // HasPtr2& operator=(const HasPtr2& hp)
-    // {
-    //     ++*hp.use_count;
-    //     if (--*use_count == 0) {  // manually
-    //         delete ps;
+    // copy assignment oprator
+    // HasPtr2 &operator=(const HasPtr2 &hp) {
+    //     // desctructor
+    //     if (--*use_count == 0) {
     //         delete use_count;
+    //         delete ps;
     //     }
+    //     // copy constructor
     //     ps = hp.ps;
-    //     i = hp.i;
     //     use_count = hp.use_count;
+    //     i = hp.i;
+    //     ++*hp.use_count;
     //     return *this;
     // }
-    HasPtr2& operator=(HasPtr2 hp)
-    {
-        void swap(HasPtr2&, HasPtr2&);
+    HasPtr2 &operator=(HasPtr2 hp) {
+        // void swap(HasPtr2 &, HasPtr2 &);
         swap(*this, hp);
         return *this;
     }
+    // destructor
+    ~HasPtr2() {
+        if (--*use_count == 0) {
+            delete use_count;
+            delete ps;
+        }
+    }
+    // a getter
+    string str() { return *ps; }
 
-private:
-    string* ps;
+   private:
+    string *ps;
+    size_t *use_count;
     int i;
-    size_t* use_count; // 类指针的引用计数
 };
-inline void swap(HasPtr2& hp1, HasPtr2& hp2)
-{
+inline void swap(HasPtr2 &hp1, HasPtr2 &hp2) {
     swap(hp1.ps, hp2.ps);
-    swap(hp1.i, hp2.i);
     swap(hp1.use_count, hp2.use_count);
+    swap(hp1.i, hp2.i);
 };
 
-int main()
-{
-    HasPtr hp11("11", 11), hp12("12", 12), hp10;
-    swap(hp11, hp12);
-    hp10 = hp11;
-    cout << hp10.str() << endl;
+int main() {
+    HasPtr hp("11", 11), hp1("12", 12), hp0;
+    swap(hp, hp1);  // hp: 11->12
+    hp0 = hp;       // hp0: 0->12
+    cout << hp0.str() << endl;
 
-    HasPtr2 hp21("21", 21), hp22("22", 22), hp20;
-    swap(hp21, hp22);
-    hp20 = hp21;
-    cout << hp20.str() << endl;
+    HasPtr2 hp3("21", 21), hp4("22", 22), hp2;
+    swap(hp3, hp4);  // hp3: 21->22
+    hp2 = hp3;       // hp2: 0->22
+    cout << hp2.str() << endl;
 }
 ```
 
-4 右值引用：赋值、下标、解引用和前置增减运算符都返回左值引用，而算术、关系、位及后置增减运算符都返回右值。右值是类值的、表达式的、短暂和临时的、非变量的和非引用的。C++11 新增的右值引用绑定在右值上，或者绑定到`const`左值或被`move`的左值（变量算是一种左值，即便是一个右值引用类型的变量）。拷贝赋值有手动释放原有资源的责任，类似地，移动操作也要确保被移动的右值对象后续**可安全释放**（使该右值像一个临时计算值一样，只被使用一次，“阅后即焚”）。以及，还有一个标准库函数`make_move_iterator`可以改变迭代器的解引用操作为右值解引用。
+4 右值引用与移动：赋值、下标、解引用和前置增减运算符都返回左值引用，而算术、关系、位及后置增减运算符都返回右值。右值是类值的、表达式的、短暂和临时的、非变量的和非引用的。C++11 新增的右值引用绑定在右值上，或者绑定到`const`左值或被`move`的左值（变量算是一种左值，即便是一个右值引用类型的变量）。拷贝赋值有手动释放原有资源的责任，类似地，移动操作也要确保被移动的右值对象后续**可安全释放**（使该右值像一个临时计算值一样，只被使用一次，“阅后即焚”）。以及，还有一个标准库函数`make_move_iterator`可以改变迭代器的解引用操作为右值解引用。拷贝控制（构造、赋值、和析构）总会存在，但一个类只有在没有定义任何拷贝操作、且该类的数据都是可以移动的情况下，编译器才会为我们合成一个移动操作，而移动操作也总是可以用对应的拷贝操作代替。合成的拷贝控制函数（拷贝构造、拷贝赋值运算符、析构、构造）可能是删除的，因为其数据成员可能是一个引用成员、`const`成员，或者某个数据成员的析构或拷贝是删除的（比如`iostream`类可能利用`=delete`阻止其被拷贝）或不可访问的（C++ 11之前将拷贝构造、拷贝赋值标记为`private`来阻止继承）。PS 我们可以为任何函数提供`=delete`限定，而只能对可以合成的构造或拷贝操作提供`=default`限定。
 
-5 常量：书中以一个`StrVec`的例子来展示包括移动和`allocator`用法在内的一系列拷贝控制与内存管理操作。引用限定符和`const`（复习：底层`const`表示不更改所引用对象的值，而顶层`const`表示不再改去引用其他对象；在 C++11 新增的型别推导中，`auto`只取底层，`decltype`会连顶层一块取）一样可以可以区分重载版本，且置于`const`之后，且具有相同的名字和参数列表的两个方法必须同时添加或不添加引用限定符。类似`const`，引用限定符作用于的同样是类对象。
+5 引用限定与常量：引用限定符和`const`（底层`const`表示不更改所引用对象的值，而顶层`const`表示不再改去引用其他对象；在 C++11 新增的型别推导中，`auto`只取底层，`decltype`会连顶层一块取）一样可以可以区分重载版本，且置于`const`之后，且具有相同的名字和参数列表的两个方法必须同时添加或不添加引用限定符。类似`const`，引用限定符作用于的同样是`this`对象。
 
-### 继承：可访问性、派生的拷贝控制
+### 继承、可访问性
 
-0 移动 vs 拷贝（析构）、合成与删除：拷贝控制（构造、赋值、和析构）总会存在，但一个类只有在没有定义任何拷贝操作、且该类的数据都是可以移动的情况下，编译器才会为我们合成一个移动操作，而移动操作也总是可以用对应的拷贝操作代替.合成的拷贝控制函数（拷贝构造、拷贝赋值运算符、析构、构造）可能是删除的，因为其数据成员可能是一个引用成员、`const`成员，或者某个数据成员的析构或拷贝是删除的（比如`iostream`类可能利用`=delete`阻止其被拷贝）或不可访问的（C++ 11之前将拷贝构造、拷贝赋值标记为`private`来阻止继承）。
+1 继承与动态绑定、可访问性：A. 与Java不同，C++需要显式地将基类方法标记为`virtual`以启用动态绑定，并且要求是指针或引用类型的变量（虚析构函数也利用这一机制）。B. 关于数据成员的继承，派生类完全具备基类的内容，但不一定有访问权限，`protected`则是一种真正意义上的权限“继承”：外部无权访问，但派生类可以访问；同时，派生类中只能访问派生类自己所有的那部分继承过去的成员，而不能获取基类对象的该成员。C. 继承中的方法的实现方式，本质上是这些方法隐式地持有一个`const`的类对象引用。如果将派生类当作/强制转换（非指针或引用）为基类的话，派生类中非基类的部分将被“切掉”。同时，如果想使用特定被继承类的`virtual`方法，则可以加入类作用域符号。D. 在不同作用域中无法重载函数名。派生类的作用域嵌套在其基类的作用域之内（除了部分基类内容受访问控制的限制不能访问外）。因此，当派生类重用基类的名字时，基类的同名（甚至方法参数不一样也如此）内容就被覆盖了，但我们仍然可以通过类作用域符号引用那些被隐藏的内容。
 
-1 继承与动态绑定：与Java不同，C++需要显式地将基类方法标记为`virtual`以启用动态绑定，并且要使用指针或引用类型的变量才有效果；虚析构函数也是利用这一机制实现派生类资源动态回收的。关于继承，派生类完全具备基类的内容，但不一定有访问权限，`protected`则是一种真正意义上的权限“继承”（外部无权访问，但派生类可以访问）。C++和Java一样用`final`表示类不可继承，但Java的`final`还具有类似C++`const`关键字的功能，而`const`虽然也是Java关键字，却未被使用。继承中的方法的实现方式，本质上是这些方法隐式地持有一个`const`的类对象引用。如果将派生类当作/强制转换（非指针或引用）为基类的话，派生类中非基类的部分将被“切掉”。同时，如果想使用特定被继承类的`virtual`方法，则可以加入类作用域符号。Java使用`abstract`表示纯虚函数，而C++使用`=0`，纯虚函数表示该类不定义该方法，该类也无法生成实例对象。
+2 阻止继承或阻止生成对象：C++和Java一样用`final`表示类不可继承，但Java的`final`还具有类似C++`const`关键字的功能，而`const`虽然也是Java关键字，却未被使用。Java使用`abstract`表示纯虚函数，而C++使用`=0`，纯虚函数表示该类不定义该方法，该类也无法生成实例对象。
 
-2 访问控制：特别值得注意的是，访问控制限定的是其他类（包括其派生类）的访问权限，类内方法中自然没有任何限制。A. 基类的`protected`限定有一个特别的点，是指在其派生类中只能访问派生类自己所有的那部分继承过去的成员，而不能获取基类对象的该成员，Java也是这样。B. 派生列表限定符的作用是，对继承来的成员在被其他类访问的时候进行限定，是派生类在基类自有访问控制之上添加的访问控制（如果原来派生类就没有该继承来的成员的访问权限，新限定也会无从谈起）。C. 可以使用`using`声明在访问说明符之上重新规划访问控制，类似于在隐式捕获上特别指定一些显式捕获。
-
-3 作用域：在不同作用域中无法重载函数名。派生类的作用域嵌套在其基类的作用域之内（除了部分基类内容受访问控制的限制不能访问外）。因此，当派生类重用基类的名字时，基类的同名（甚至方法参数不一样也如此）内容就被覆盖了，但我们仍然可以通过类作用域符号引用那些被隐藏的内容。
-
-4 
+3 访问控制：特别值得注意的是，访问控制限定的是其他类（包括其派生类）的访问权限，类内方法中自然没有任何限制。A. 派生列表限定符的作用是，对继承来的成员在被其他类访问的时候进行限定，是派生类在基类自有访问控制之上添加的访问控制（如果原来派生类就没有该继承来的成员的访问权限，新限定也会无从谈起）。B. 可以使用`using`声明在访问说明符之上重新规划访问控制，类似于在隐式捕获上特别指定一些显式捕获。
 
 
 
