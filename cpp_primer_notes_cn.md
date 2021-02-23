@@ -1,6 +1,6 @@
 ## C++ Primer 的 YI 点点干货 ​
 
-### 类：构造、初始化与析构
+### 构造、初始化与析构
 
 1 合成的构造函数：合成的默认构造函数，首先使用类内初始值来初始化它的数据成员，然后默认初始化不存在类内初始值的其他数据成员，但这种默认初始化只有对含有默认构造函数的类才有用，而内置类型的数据成员的值将是未定义的。
 
@@ -8,7 +8,7 @@
 
 3 析构：析构的方式类似于构造，先执行析构函数体，然后按照初始化的逆序进行销毁。
 
-### 容器：迭代器、列表初始化与增删改
+### 迭代器、列表初始化与增删改
 
 1 容器初始化：容器可以默认构造、使用同类型对象构造、使用任意容器对象的迭代器构造以及通过列表初始化构造。顺序容器还可以按照给定个数进行默认值初始化与给定值的重复初始化。
 
@@ -16,7 +16,7 @@
 
 3 增删改与单向链表：对于往容器对象中添加元素，C++的逻辑是，方法insert和emplace都是往给定迭代器的前面插入，只是emplace使用其元素类型的构造方法，而insert还可以接受赋值方法`assign`可以接受的参数。`forward_list`是一个比较特殊的极简的容器，它的迭代器包括`before_begin`和`begin`，且没有`end`，插入方法是`insert_after`，删除也不是删除迭代器所指的元素（包括一个元素或者一个左闭右开的范围），而是`erase_after`。反向迭代器的递增方向则相反，通过`base`方法可转变成右移一位的正向迭代器。同时，在C++中，`stack`和头文件`queue`中的`priority_queue`的`pop`仅弹出顶部元素，返回用`top`。
 
-### 字符串：拼接、分割
+### 字符串、拼接、分割
 
 1 构造：除了本质是一个`char`类型`vector`之外，字符串的构造还支持从一个字符指针/数组拷贝指定个数的字符，以及从一个字符串的给定位置开始拷贝到结尾或者拷贝指定的长度。这也体现了字符串在普通顺序容器之上增加的操作支持：字符串不但可以接受一对迭代器，而且可以接受一个给定位置加一个长度；字符串不但可以接受字符串类型，还可以接受C风格的字符指针。此外，与Java不同，C++的字符串不是`const`的，其中的每个字符都可以像数组那样被替换。
 
@@ -152,7 +152,7 @@ int main()
 }
 ```
 
-### 关联容器：下标、删除和查找
+### 键值对、下标、查找
 
 1 `tuple`：关联容器里存放的是`pair`类型，这很大程度上是因为C++和Java这些语言不像Python或Go那样支持多返回类型。但是，新标准增加的`tuple`（可以看作是一种泛化的`pair`）和`tie`会更加类似多返回类型的用法。
 
@@ -179,7 +179,7 @@ int main() {
 }
 ```
 
-### 智能指针：构造、赋值与`deleter` 
+### 智能指针的获取
 
 1 原生的动态内存管理：使用`new`和`delete`、`delete []`，但智能指针类提供了自动释放资源等机制，将更加安全，而智能指针也提供了符合直觉的接口，比如解引用`*`、解引用并取成员`->`和交换函数`swap`等。
 
@@ -215,24 +215,24 @@ int main()
 {
     allocator<string> alloc;  // 0. allocator<T>
 
-    int size = 10;  // 1. allocate(n)
+    int size = 10;  // 1. begin = allocate(n)
     auto const begin = alloc.allocate(size);
     auto end = begin;
 
-    alloc.construct(end++);  // 2a. construct(p++)
+    alloc.construct(end++);  // 2a. construct(end++, values)
     alloc.construct(end++, "str");
     alloc.construct(end++, 3, 'a');
 
-    // 2b. uninitialized_copy(beg, end, p)
+    // 2b. end = uninitialized_copy(a.beg, a.end, end)
     vector<string> vec{"hello", ", ", "world."}; 
     end = uninitialized_copy(vec.begin(), vec.end(), end);
 
     for (size_t i = 0, size = end - begin; i < size; ++i)
         cout << i << " " << begin[i] << endl;
 
-    while (end != begin) alloc.destroy(--end);  // 3. destory(--p)
+    while (end != begin) alloc.destroy(--end);  // 3. destory(--end)
 
-    alloc.deallocate(begin, size); // 4. deallocate(p, n)
+    alloc.deallocate(begin, size); // 4. deallocate(begin, n)
 }
 ```
 
@@ -242,7 +242,7 @@ int main()
 
 2 析构函数：被自动调用的地方包括变量离开作用域、成员随其对象被销毁、元素随其容器被销毁、动态内存的`delete`以及临时对象随其所在表达式结束的时候。析构和构造的区别：类的初始化可以在初始值列表种指定，但类的析构是隐式的；同时，在继承体系中，派生类要负责基类成员的构造，但却只负责自己分配资源的回收。
 
-3 避免拷贝：需要析构（释放动态内存或其他类外资源）的类，一般也需要定义拷贝，来避免指针地址的简单拷贝：不管是类值还是类指针的（两者的区别就是如何拷贝指针成员，前者`new`一个，而后者只是指针地址的赋值，但需要计数，也即模仿`shared_ptr`）；对于类指针的，如果使用智能指针，析构和拷贝就都不需要自定义了。同样地，为了避免拷贝，我们通常自定义`swap`接口，以最大限度地利用C++那些常量时间复杂度的`swap`函数（库函数是泛型接口，因而可以先`using std::swap`，以优先匹配非泛型的自定义的接口）。最后，**拷贝并交换**这种写法，使得`swap`接口，非常适合用于对拷贝赋值进行定义，不论是类值还是类指针的类。
+3 避免拷贝：需要析构（释放动态内存或其他类外资源）的类，一般也需要定义拷贝，来避免指针地址的简单拷贝：不管是类值还是类指针的（两者的区别就是如何拷贝指针成员，前者`new`一个，而后者只是指针地址的赋值，但需要计数，也即模仿`shared_ptr`）；对于类指针的，如果使用智能指针，析构和拷贝就都不需要自定义了。同样地，为了避免拷贝，我们通常自定义`swap`接口，以最大限度地利用C++那些常量时间复杂度的`swap`函数（库函数是泛型接口，因而可以先`using std::swap`，以优先匹配非泛型的自定义的接口）。最后，**拷贝并交换**这种写法，使得`swap`接口，非常适合用于对拷贝赋值进行定义，不论是类值还是类指针的类，并同时使类获得了移动赋值运算符。
 
 ```cpp
 #include "hello.hpp"
@@ -256,8 +256,10 @@ class HasPtr {  // value-like
     // common constructor
     HasPtr(const string &s, const int i) : ps(new string(s)), i(i) {}
     // copy constructor
-    HasPtr(const HasPtr &hp) : ps(new string(*hp.ps)), i(0) {}
-    // copy assignment oprator
+    HasPtr(const HasPtr &hp) : ps(new string(*hp.ps)), i(hp.i) {}
+    // move constructor
+    HasPtr(HasPtr &&hp) : ps(hp.ps), i(hp.i) { hp.ps = nullptr; }
+    // copy assignment operator
     // HasPtr &operator=(const HasPtr &hp) {
     //     auto newStr = new string(*hp.ps);
     //     // destructor
@@ -267,6 +269,7 @@ class HasPtr {  // value-like
     //     i = hp.i;
     //     return *this;
     // }
+    // copy/move assignment operator
     HasPtr &operator=(HasPtr hp) {
         // void swap(HasPtr &, HasPtr &);  // function declaration
         swap(*this, hp);
@@ -301,7 +304,12 @@ class HasPtr2 {  // pointer-like
     HasPtr2(const HasPtr2 &hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) {
         ++*use_count;
     }
-    // copy assignment oprator
+    // move constructor: almost like a shared_ptr takes an unique_ptr
+    HasPtr2(HasPtr2 &&hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) {
+        hp.ps = new string();
+        hp.use_count = new size_t(1);
+    }
+    // copy assignment operator
     // HasPtr2 &operator=(const HasPtr2 &hp) {
     //     // desctructor
     //     if (--*use_count == 0) {
@@ -329,6 +337,7 @@ class HasPtr2 {  // pointer-like
     }
     // a getter
     string str() { return *ps; }
+    int get_use_count() { return *use_count; }
 
    private:
     string *ps;
@@ -350,13 +359,55 @@ int main() {
     HasPtr2 hp3("21", 21), hp4("22", 22), hp2;
     swap(hp3, hp4);  // hp3: 21->22
     hp2 = hp3;       // hp2: 0->22
-    cout << hp2.str() << endl;
+    cout << hp2.str() << ", " << hp2.get_use_count() << endl;
+
+    cout << endl;
 }
 ```
 
-4 右值引用与移动：赋值、下标、解引用和前置增减运算符都返回左值引用，而算术、关系、位及后置增减运算符都返回右值。右值是类值的、表达式的、短暂和临时的、非变量的和非引用的。C++11 新增的右值引用绑定在右值上，或者绑定到`const`左值或被`move`的左值（变量算是一种左值，即便是一个右值引用类型的变量）。拷贝赋值有手动释放原有资源的责任，类似地，移动操作也要确保被移动的右值对象后续**可安全释放**（使该右值像一个临时计算值一样，只被使用一次，“阅后即焚”）。以及，还有一个标准库函数`make_move_iterator`可以改变迭代器的解引用操作为右值解引用。拷贝控制（构造、赋值、和析构）总会存在，但一个类只有在没有定义任何拷贝操作、且该类的数据都是可以移动的情况下，编译器才会为我们合成一个移动操作，而移动操作也总是可以用对应的拷贝操作代替。合成的拷贝控制函数（拷贝构造、拷贝赋值运算符、析构、构造）可能是删除的，因为其数据成员可能是一个引用成员、`const`成员，或者某个数据成员的析构或拷贝是删除的（比如`iostream`类可能利用`=delete`阻止其被拷贝）或不可访问的（C++ 11之前将拷贝构造、拷贝赋值标记为`private`来阻止继承）。PS 我们可以为任何函数提供`=delete`限定，而只能对可以合成的构造或拷贝操作提供`=default`限定。
+4 右值引用与移动：A. 赋值、下标、解引用和前置增减运算符都返回左值引用（用的是对象的身份、内存中的位置），而算术、关系、位及后置增减运算符都返回右值（用的是对象的值、内容），后者，我们不能把左值引用绑定到上面，但是，我们可以把一个`const`的左值引用绑定上去。B. 右值引用是为了给移动操作用的，只能绑定在将要销毁的对象上。我们虽然不能把右值引用绑定到左值上，但是，可以`move`可以显式地将一个左值转变成一个右值引用类型。C. 为了使自定义的类能支持像库里的类拥有的那样的移动操作，需要自定义移动构造函数与移动赋值运算符，否则，`move`会调用拷贝接口。移动操作设计的要点是：接收输入对象的内容，将输入对象置空，并且，由于不会分配资源，而是窃取，所以一般不会抛出异常，所以，最好要加上`noexcept`标注，避免标准库做额外的处理，否则，比如说，一个持有自定义类型作为元素的`vector`，它采用移动来实现数组的扩充，拷贝过程中的问题不影响原数据，但是移动会，所以，没有声明自己不会抛出错误的元素类型，`vector`不会调用该元素类型的移动操作，而是调用拷贝。D. 自定义的移动赋值运算符，需要滤过自赋值的情况，因为在接管新资源前，需要释放`this`的旧资源，而我们不能在用之前就释放那些资源。E. 合成移动操作的条件是：未定义任何拷贝操作，且每个非`static`的数据成员都是可以移动的（内置类型可移动，类类型需要有对应的移动操作）。
 
-5 引用限定与常量：引用限定符和`const`（底层`const`表示不更改所引用对象的值，而顶层`const`表示不再改去引用其他对象；在 C++11 新增的型别推导中，`auto`只取底层，`decltype`会连顶层一块取）一样可以可以区分重载版本，且置于`const`之后，且具有相同的名字和参数列表的两个方法必须同时添加或不添加引用限定符。类似`const`，引用限定符作用于的同样是`this`对象。
+```cpp
+#include "hello.hpp"
+using namespace std;
+class HP {
+    int i;
+
+   public:
+    int get() { return i; }
+    HP() : i(0) {}
+    HP(int i) : i(i) { cout << "construct with " << i << endl; }
+    HP(const HP &hp) : i(hp.i) { cout << "copy with " << i << endl; }
+    HP(HP &&hp) : i(hp.i) {
+        hp.i = 100000;
+        cout << "move with " << i << endl;
+    }
+    HP &operator=(HP &hp) {
+        i = hp.i;
+        cout << "assign with " << i << endl;
+        return *this;
+    }
+    ~HP() { cout << "die with " << i << endl; }
+};
+
+int main() {
+    HP hp();
+    HP hp1 = hp();
+    cout << hp1.get() << endl;
+
+    vector<int> a{1, 2, 3};
+    auto b = move(a);
+    cout << b.size() << " " << a.size() << endl;
+}
+
+HP hp() {
+    HP hp(9);
+    // return hp;
+    return move(hp);
+}
+```
+
+5 移动迭代器、引用限定与常量：引用限定符和`const`（底层`const`表示不更改所引用对象的值，而顶层`const`表示不再改去引用其他对象；在 C++11 新增的型别推导中，`auto`只取底层，`decltype`会连顶层一块取）一样可以可以区分重载版本，且置于`const`之后，且具有相同的名字和参数列表的两个方法必须同时添加或不添加引用限定符。类似`const`，引用限定符作用于的同样是`this`对象。
 
 ### 继承、可访问性
 
