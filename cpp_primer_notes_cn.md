@@ -268,7 +268,7 @@ int main() {
 
 
 
-### :shell: 字符串
+### :penguin: 字符串
 
 #### 字符串操作
 
@@ -338,9 +338,9 @@ int main() {
 
 
 
-### :blossom: 动态内存
+### :bath:  智能指针
 
-#### 智能指针
+#### 动态内存管理
 
 智能指针是基于`use_count`对指针类型的封装。原生的`new`和`delete`、`delete []`能够完成**动态内存**管理，但智能智能类更加安全和方便，它提供了：`deleter`机制来代替默认的`delete`操作（如果所持有的指针不是动态内存指针会报错）来实现资源的自动释放、解引用`*`、解引用并取成员`->`、`swap`、`reset([p[, d]])`、`get()`等。
 
@@ -410,71 +410,59 @@ int main() {
 
 原则1：需要析构（释放动态内存或其他类外资源）的类，一般也需要定义拷贝，来避免指针地址的简单拷贝：不管是类值还是类指针的（两者的区别就是如何拷贝指针成员，前者`new`一个，而后者只是指针地址的赋值，但需要计数，也即模仿`shared_ptr`）；对于类指针的，如果使用智能指针，析构和拷贝就都不需要自定义了。
 
-原则2：为了避免默认的交换函数执行默认的拷贝操作，我们通常自定义`swap`接口，以最大限度地利用C++那些常量时间复杂度的`swap`函数（库函数是泛型接口，因而可以先`using std::swap`，以优先匹配非泛型的自定义的接口）。最后，**拷贝并交换**这种写法，使得`swap`接口，非常适合用于对拷贝赋值进行定义，不论是类值还是类指针的类，并同时使类获得了移动赋值运算符。
+原则2：在类似原址排序的算法中常要用到`swap`操作（它包括一次初始化和两次赋值），为了避免默认泛型交换函数执行默认的拷贝操作，我们通常自定义`swap`接口以减少内存分配操作（尤其是类值的）。
+
+建议：很多时候，我们习惯于用`std::`标明任何来自标准库的名字以降低冲突的可能性，但此处，我们习惯于在使用交换操作的块作用域中的首先声明`use std::swap;`，然后使用不加限定的`swap`以使自定义接口获得优先匹配。
+
+注：赋值操作的本质是释放原对象、持有一个新对象，“拷贝并赋值”（非引用也非`const`作参数的拷贝赋值定义）使用现成的`swap`接口将极大地简化其实现，不论是类值的还是类指针的：通过将`*this`置换到作为自动变量的入参上以实现隐式的资源释放。
+
+最后，**拷贝并交换**这种写法，使得`swap`接口，非常适合用于对拷贝赋值进行定义，不论是类值还是类指针的类，并同时使类获得了移动赋值运算符。
 
 ```cpp
-#include "hello.hpp"
-using namespace std;
-class HasPtr {  // value-like
-    friend void swap(HasPtr &, HasPtr &);
+#include <cctype>
+#include <iostream>
+#include <string>
+
+class HasPtrValueLike {  // value-like
+    friend void swap(HasPtrValueLike &, HasPtrValueLike &);
 
    public:
-    // default constructor
-    HasPtr(const string &s = string()) : ps(new string(s)), i(0) {}
-    // common constructor
-    HasPtr(const string &s, const int i) : ps(new string(s)), i(i) {}
-    // copy constructor
-    HasPtr(const HasPtr &hp) : ps(new string(*hp.ps)), i(hp.i) {}
-    // move constructor
-    HasPtr(HasPtr &&hp) : ps(hp.ps), i(hp.i) { hp.ps = nullptr; }
-    // copy assignment operator
-    // HasPtr &operator=(const HasPtr &hp) {
-    //     auto newStr = new string(*hp.ps);
-    //     // destructor
-    //     delete ps;
-    //     // copy constructor
-    //     ps = newStr;
-    //     i = hp.i;
-    //     return *this;
-    // }
-    // copy/move assignment operator
-    HasPtr &operator=(HasPtr hp) {
-        // void swap(HasPtr &, HasPtr &);  // function declaration
+    HasPtrValueLike(const std::string &s = "") : ps(new std::string(s)), i(0) {}
+    HasPtrValueLike(const std::string &s, const int i) : ps(new std::string(s)), i(i) {}
+    HasPtrValueLike(const HasPtrValueLike &hp) : ps(new std::string(*hp.ps)), i(hp.i) {}
+    HasPtrValueLike(HasPtrValueLike &&hp) : ps(hp.ps), i(hp.i) { hp.ps = nullptr; }
+    HasPtrValueLike &operator=(const HasPtrValueLike &hp) {
+        delete ps;  // gc
+        ps = new std::string(*hp.ps);
+        i = hp.i;
+        return *this;
+    }
+    HasPtrValueLike &operator=(HasPtrValueLike hp) {
         swap(*this, hp);
         return *this;
     }
-    // destructor
-    ~HasPtr() { delete ps; }
-    // a getter
-    string str() { return *ps; }
+    ~HasPtrValueLike() { delete ps; }  // p824
+    std::string str() { return *ps; }
 
    private:
-    string *ps;
+    std::string *ps;
     int i;
 };
-inline void swap(HasPtr &hp, HasPtr &hp1) {
-    // using std::swap;  // generic api
+inline void swap(HasPtrValueLike &hp, HasPtrValueLike &hp1) {
+    using std::swap;
     swap(hp.ps, hp1.ps);
     swap(hp.i, hp1.i);
 };
 
-class HasPtr2 {  // pointer-like
-    friend void swap(HasPtr2 &, HasPtr2 &);
+class HasPtrPointerLike {  // pointer-like
+    friend void swap(HasPtrPointerLike &, HasPtrPointerLike &);
 
    public:
-    // default constructor
-    HasPtr2(const string &s = string())
-        : ps(new string(s)), i(0), use_count(new size_t(1)) {}
-    // common constructor
-    HasPtr2(const string &s, const int i)
-        : ps(new string(s)), i(i), use_count(new size_t(1)) {}
-    // copy constructor
-    HasPtr2(const HasPtr2 &hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) {
-        ++*use_count;
-    }
-    // move constructor: almost like a shared_ptr takes an unique_ptr
-    HasPtr2(HasPtr2 &&hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) {
-        hp.ps = new string();
+    HasPtrPointerLike(const std::string &s = "") : ps(new std::string(s)), i(0), use_count(new size_t(1)) {}
+    HasPtrPointerLike(const std::string &s, const int i) : ps(new std::string(s)), i(i), use_count(new size_t(1)) {}
+    HasPtrPointerLike(const HasPtrPointerLike &hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) { ++*use_count; }
+    HasPtrPointerLike(HasPtrPointerLike &&hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) {
+        hp.ps = new std::string();
         hp.use_count = new size_t(1);
     }
     // copy assignment operator
@@ -491,45 +479,45 @@ class HasPtr2 {  // pointer-like
     //     ++*hp.use_count;
     //     return *this;
     // }
-    HasPtr2 &operator=(HasPtr2 hp) {
+    HasPtrPointerLike &operator=(HasPtrPointerLike hp) {
         // void swap(HasPtr2 &, HasPtr2 &);
         swap(*this, hp);
         return *this;
     }
     // destructor
-    ~HasPtr2() {
+    ~HasPtrPointerLike() {
         if (--*use_count == 0) {
             delete use_count;
             delete ps;
         }
     }
     // a getter
-    string str() { return *ps; }
+    std::string str() { return *ps; }
     int get_use_count() { return *use_count; }
 
    private:
-    string *ps;
+    std::string *ps;
     size_t *use_count;
     int i;
 };
-inline void swap(HasPtr2 &hp1, HasPtr2 &hp2) {
+inline void swap(HasPtrPointerLike &hp1, HasPtrPointerLike &hp2) {
     swap(hp1.ps, hp2.ps);
     swap(hp1.use_count, hp2.use_count);
     swap(hp1.i, hp2.i);
 };
 
 int main() {
-    HasPtr hp("11", 11), hp1("12", 12), hp0;
+    HasPtrValueLike hp("11", 11), hp1("12", 12), hp0;
     swap(hp, hp1);  // hp: 11->12
     hp0 = hp;       // hp0: 0->12
-    cout << hp0.str() << endl;
+    std::cout << hp0.str() << std::endl;
 
-    HasPtr2 hp3("21", 21), hp4("22", 22), hp2;
+    HasPtrPointerLike hp3("21", 21), hp4("22", 22), hp2;
     swap(hp3, hp4);  // hp3: 21->22
     hp2 = hp3;       // hp2: 0->22
-    cout << hp2.str() << ", " << hp2.get_use_count() << endl;
+    std::cout << hp2.str() << ", " << hp2.get_use_count() << std::endl;
 
-    cout << endl;
+    std::cout << std::endl;
 }
 ```
 
