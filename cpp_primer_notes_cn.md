@@ -1,4 +1,4 @@
-## C++ 笔记
+## C++ Primer 笔记
 
 
 
@@ -34,17 +34,6 @@
 
 建议：定义函数和变量的文件中，一般也要引入其声明所在文件，以利用编译器检查声明和定义的一致性。
 
-#### P2 作用域、生命周期
-
-名字有作用域，对象（C++世界中的对象，一般具有超过面向对象编程概念里的对象的更宽泛的指涉，即，它指向程序中所有具体而非模板或类型的数据，地址数据也是数据）有生命周期。声明的是名字，定义的是对象，声明和定义在同一处的是初始化。
-
-1. 名字的作用域是程序文本的一部分，体现在编译的可见性。
-2. 对象的生命周期体现在程序执行过程中的存留时间。
-
-函数与条件、循环语句块类似，也是一种**语句块**。同时，与`for`循环初始条件中的变量定义类似，函数参数也属于自动变量。块内的自动变量作用域限定在块内，生命周期也限定在进程进入和走出块作用域期间。但如果是局部静态（static）变量，就和存在于所有函数体之外的对象一样，生命周期长至进程结束。
-
-对于所有函数之外的`static`变量来说，C语言将其作用域限定在定义它的文件中，而另一个文件中的`extern`声明将无法获取其定义。C++标准消除了这个限制，并用未命名的命名空间来实现它，未命名的命名空间的作用域为其所在作用域。
-
 ```cpp
 // a.cpp
 #include "a.hpp"
@@ -77,15 +66,26 @@ int main() {
 }
 ```
 
+#### P2 作用域、生命周期
+
+名字有作用域，对象（C++世界中的对象，一般具有超过面向对象编程概念里的对象的更宽泛的指涉，即，它指向程序中所有具体而非模板或类型的数据，地址数据也是数据）有生命周期。声明的是名字，定义的是对象，声明和定义在同一处的叫初始化。
+
+1. 名字的作用域是程序文本的一部分，体现在编译的可见性。
+2. 对象的生命周期体现在程序执行过程中的存留时间。
+
+函数与条件、循环语句块类似，也是一种**语句块**。同时，与`for`循环初始条件中的变量定义类似，函数参数也属于自动变量。块内的自动变量作用域限定在块内，生命周期也限定在进程进入和走出块作用域期间。但如果是局部静态（static）变量，就和存在于所有函数体之外的对象一样，生命周期长至进程结束。
+
+对于所有函数之外的`static`变量来说，C语言将其作用域限定在定义它的文件中，而另一个文件中的`extern`声明将无法获取其定义。C++标准消除了这个限制，并用未命名的命名空间来实现它，未命名的命名空间的作用域为其所在作用域。
+
 #### 编译选项、预处理变量
 
 断言`assert(true_expr)`是一种预处理宏。可以通过定义预处理变量`NDEBUG`来关闭断言，编译选项也可以重置该变量。此外，C++也有一些别的由预处理器定义的魔术变量：`__FILE__`、`__LINE__`、`__FUNC__`和`__TIME__`等。
 
 ```shell
-CC file file.o
--o output_file_name
--c # compile only
--D NDEBUG # 定义预处理变量NDEBUG
+CC 
+ -c # compile only
+ -o output_file_name
+ -D NDEBUG # 定义预处理变量NDEBUG
 ```
 
 
@@ -140,7 +140,7 @@ int main() {
 }
 ```
 
-#### P1 访问控制、友元与继承
+#### 访问控制、友元与继承
 
 注：C++中，`class`与`struct`唯一的区别就是`class`中默认的访问控制权限是`private`，而`struct`是`public`。
 
@@ -152,21 +152,211 @@ int main() {
 2. 继承：子类是外部类型，所以，子类在其内部可以访问其继承自父类的`protected`成员，但不能通过父类来获取父类对象的该成员。子类继承（拥有）父类的全部数据，但在自己的空间内不一定有**访问权限**。
 3. 在继承体系内，子类定义起始行的派生列表限定符的作用也是对继承来的成员在被其他外部类访问的时候进行限定，是派生类在基类自有访问控制之上添加的访问控制，如果原来派生类就没有该继承来的成员的访问权限，即`private`限定，则新限定也就无从谈起。可以使用`using`声明屏蔽访问说明符的作用并重新规划访问控制权限，类似于在`lambda`表达式的隐式捕获的基础上，特别指定个别参数的显式捕获。
 
-#### P2 面向对象的作用域
+#### 面向对象的作用域**
 
 当编译器要找一个在成员函数中出现的名字时，先查看它是否为局部变量，不是局部变量再看类内数据成员，如果不在类里面再从成员函数定义点（成员函数可能定义在类外部）往前看是否存在该名字的声明。除了让编译器去识别，也可以通过作用域限定符来指明：`ClassName::MemberName`和`::GlobalName`，因为，类其实是一个**命名空间**，比如`std::vector<T>::size_type`就是在`vector`类内通过`using`定义的一个`unsigned`的类型别名。
 
-#### 拷贝、赋值运算符
+#### P1 拷贝、赋值运算符与拷贝控制
 
-拷贝构造函数的第一个参数是（一般为非`explict`、`const`限定，可指定默认参数的）自身类类型的引用（如果不是引用就存在无限递归）；拷贝赋值运算符接受一个与其所属类相同类型的参数（可以不为引用，一般为`const`）并返回指向其左侧类型的引用，它的本质是析构（、销毁）与构造的结合。
+WHAT 拷贝构造函数的第一个参数是（一般为非`explict`、`const`限定，可指定默认参数的）自身类类型的引用（如果不是引用就存在无限递归）；拷贝赋值运算符接受一个与其所属类相同类型的参数（可以不为引用，一般为`const`）并返回指向其左侧类型的引用，它的本质是析构（、销毁）与构造的结合。
 
 类似默认构造函数，如无定义，编译器默认会合成拷贝构造函数与拷贝赋值运算符。因为，拷贝是隐式调用默认的手段，而隐式调用就是一些经常发生的隐式构造、赋值。
 
-#### 成员的`const`、引用限定
+需要析构（释放动态内存或其他类外资源）的类，一般也需要定义拷贝，来避免指针地址（指向**资源**）的简单拷贝：不管是类值还是类指针的（两者的区别就是如何拷贝指针成员，前者`new`一个，而后者只是指针地址的赋值，但需要计数，也即模仿`shared_ptr`）；对于类指针的，如果使用智能指针，析构和拷贝就都不需要自定义了。
+
+建议：很多算法（比如原址排序）要用到`swap`操作（它的本质是一次初始化和两次赋值），为了避免默认泛型交换函数执行默认的拷贝操作，我们通常自定义`swap`接口以减少内存分配操作（尤其是类值的）。
+
+注：很多时候，我们习惯于用`std::`标明任何来自标准库的名字以降低冲突的可能性，但此处，我们习惯于在使用交换操作的块作用域中的首先声明`use std::swap;`，然后使用不加限定的`swap`以使自定义接口获得优先匹配。
+
+赋值操作的本质是释放原对象、持有一个新对象，“拷贝并赋值”（选择普通可修改参数来定义拷贝赋值）使用自定义的`swap`接口可极大地简化其实现，并潜在地具有效率优势，不论是类值的还是类指针的，它的原理是：将`*this`置换到作为自动变量的入参上以实现隐式的资源释放。
+
+```cpp
+#include <iostream>
+#include <string>
+
+class Exclusive {  // contains exclusive(value like) resource
+    friend void swap(Exclusive &, Exclusive &);
+
+   public:
+    // normal constructor
+    Exclusive(const std::string &s = "") : res(new std::string(s)), i(0) {}
+    Exclusive(const std::string &s, const int i) : res(new std::string(s)), i(i) {}
+    // copy constructor
+    Exclusive(const Exclusive &hp) : res(new std::string(*hp.res)), i(hp.i) {}
+    // move constructor
+    Exclusive(Exclusive &&hp) : res(hp.res), i(hp.i) { hp.res = nullptr; }
+    // copy assignment operator
+    // Exclusive &operator=(const Exclusive &hp) {
+    //     delete res;  // gc
+    //     // construct
+    //     res = new std::string(*hp.res);
+    //     i = hp.i;
+    //     return *this;
+    // }
+    Exclusive &operator=(Exclusive hp) {  // construct
+        swap(*this, hp);
+        return *this;  // gc
+    }
+    // desctructor
+    ~Exclusive() {
+        show(false);
+        std::cout << ": auto gc" << std::endl;
+        delete res;
+    }
+    // printer
+    void show(bool eofl = true) {
+        if (res != nullptr)
+            std::cout << "show(): " << *res << " with id " << i;
+        else
+            std::cout << "show(): exclusive res moved";
+        if (eofl) std::cout << std::endl;
+    }
+    // setter
+    Exclusive &seti(int i) {
+        this->i = i;
+        return *this;
+    }
+
+   private:
+    std::string *res;
+    int i;
+};
+inline void swap(Exclusive &hp, Exclusive &hp1) {
+    using std::swap;
+    swap(hp.res, hp1.res);
+    swap(hp.i, hp1.i);
+};
+
+class Shared {  // contains shared(pointer like) resource
+    friend void swap(Shared &, Shared &);
+
+   public:
+    // constructor
+    Shared(const std::string &s = "") : res(new std::string(s)), i(0), use_count(new size_t(1)) {}
+    Shared(const std::string &s, const int i) : res(new std::string(s)), i(i), use_count(new size_t(1)) {}
+    // copy constructor
+    Shared(const Shared &hp) : res(hp.res), i(hp.i), use_count(hp.use_count) { ++*use_count; }
+    // move constructor
+    Shared(Shared &&hp) : res(hp.res), i(hp.i), use_count(hp.use_count) {
+        hp.res = nullptr;
+        hp.use_count = new size_t(1);
+    }
+    // copy assignment operator
+    // Shared &operator=(const Shared &hp) {
+    //     if (--*use_count == 0) {  // gc
+    //         delete use_count;
+    //         delete res;
+    //     }
+    //     // construct
+    //     res = hp.res;
+    //     use_count = hp.use_count;
+    //     i = hp.i;
+
+    //     ++*hp.use_count;
+    //     return *this;
+    // }
+    Shared &operator=(Shared hp) {
+        swap(*this, hp);
+        return *this;
+    }
+    // destructor
+    ~Shared() {
+        show(false);
+        if (--*use_count == 0) {
+            std::cout << ": auto gc" << std::endl;
+            delete use_count;
+            delete res;
+        } else
+            std::cout << std::endl;
+    }
+    // printer
+    Shared &show(bool eofl = true) {
+        if (res != nullptr && use_count != nullptr)
+            std::cout << "show(): " << *res << " with id " << i << ", cnt " << *use_count;
+        else
+            std::cout << "show(): shared res moved";
+        if (eofl) std::cout << std::endl;
+        return *this;
+    }
+    // setter
+    Shared &seti(int i) {
+        this->i = i;
+        return *this;
+    }
+
+   private:
+    std::string *res;
+    size_t *use_count;
+    int i;
+};
+inline void swap(Shared &hp1, Shared &hp2) {
+    using std::swap;
+    swap(hp1.res, hp2.res);
+    swap(hp1.use_count, hp2.use_count);
+    swap(hp1.i, hp2.i);
+};
+
+int main() {
+    Exclusive hp1("exclusive res 1", 1), hp2("exclusive res 2", 2), hp0("exclusive res 0");
+    std::cout << "\n---swap(hp1, hp2); (hp0 = hp1).seti(0);---" << std::endl;
+    swap(hp1, hp2);
+    (hp0 = hp1).seti(0).show();
+    std::cout << "\n---hp0 = std::move(hp2);---" << std::endl;
+    hp0 = std::move(hp2);
+
+    Shared hp3("shared res 3", 3), hp4("shared res 4", 4), hp00("shared res 00");
+    std::cout << "\n---swap(hp3, hp4); (hp00 = hp3).seti(0);---" << std::endl;
+    swap(hp3, hp4);
+    (hp00 = hp3).seti(0).show();
+    std::cout << "\n---hp00 = std::move(hp4);---" << std::endl;
+    hp00 = std::move(hp4);
+
+    std::cout << "\n---exit---\n" << std::endl;
+}
+```
+
+```
+---swap(hp1, hp2); (hp0 = hp1).seti(0);---
+show(): exclusive res 2 with id 0
+show(): exclusive res 0 with id 0: auto gc
+
+---hp0 = std::move(hp2);---
+show(): exclusive res 2 with id 0: auto gc
+
+---swap(hp3, hp4); (hp00 = hp3).seti(0);---
+show(): shared res 4 with id 0, cnt 2
+show(): shared res 00 with id 0, cnt 1: auto gc
+
+---hp00 = std::move(hp4);---
+show(): shared res 4 with id 0, cnt 2
+
+---exit---
+
+show(): shared res 3 with id 3, cnt 1: auto gc
+show(): shared res moved: auto gc
+show(): shared res 4 with id 4, cnt 1: auto gc
+show(): exclusive res 1 with id 1: auto gc
+show(): exclusive res moved: auto gc
+show(): exclusive res 2 with id 2: auto gc
+```
+
+#### P2 移动、右值引用
+
+`std::move`做的是强制类型转换，它将（左值）类型转变成右值引用类型。而右值引用是种类似于引用的**修饰符**，表示对象的内容是可被窃取的，即，在移动拷贝、移动赋值运算符接收到一个右值引用类型的入参时，它们应该窃取这个被引用对象的内容。`std::move`可用在非引用返回值、赋值运算符的右侧对象之上，借用或隐式或显式的移动操作，直接窃取被移动对象的内容。因为被移动的对象可能随即被析构、销毁，所以移动操作（移动拷贝、移动赋值运算符）应该在获取到被移动对象的资源后，将被移动对象的指针置空，也因为需要置空，所以，移动操作要校验自移动。
+
+赋值、下标、解引用和前置增减运算符返回左值引用（用的是对象的身份、内存中的位置），而算术、关系、位及后置增减运算符返回右值（用的是对象的值、内容）。只有`const`左值引用可以持有右值，因为它不会破坏右值的常量属性。
+
+注：当自定义类未定义任何拷贝操作的时候，编译器才会合成移动操作，且要求类的数据成员都可移动（成员是内置类型或是定义了移动操作的类）。移动操作不可用时，对应的拷贝操作就会代替移动操作被调用。
+
+注：移动操作最好加一个`noexcept`关键字，否则，比如，标准库的`vector`还是会调用拷贝操作符以将原数据赋值到扩容的新数组上。因为`vector`调用的是`std::move_if_noexcept`，它依条件调用`std::move`或返回`const &`类型。
+
+#### 成员的`const`、引用限定**
 
 访问控制限定的是外部的类访问类内成员的权限，而引用与`const`限定符是为了声明类方法对类数据成员的修改与否。
 
-常量成员函数（`const`限定）不修改对象的数据成员，要在`const`限定声明的方法内修改一个数据成员，那这个数据成员要有一个`mutable`关键字声明。`&`和`&&`（左值与右值引用，参见拷贝控制章节）限定符声明对象是一个左值或右值。`const`与引用限定都可以区分重载版本，编译器会选出与对象的类型限定最匹配的方法。
+常量成员函数（`const`限定）不修改对象的数据成员，要在`const`限定声明的方法内修改一个数据成员，那这个数据成员要有一个`mutable`关键字声明。`&`和`&&`（左值与右值引用，参见拷贝控制章节）限定符声明对象是一个左值或右值。`const`与引用限定都可以区分重载版本，编译器会选出与对象的类型限定最匹配的方法。G. 引用限定符和`const`限定类似地作用于非`const`对象，它的作用是：如果`string`有限定赋值运算符的对象是左值的话，就不会出现`str1+str2="wow"`这种情况了；且一旦一个方法有移动标记，所有方法就都要标记。5 移动迭代器、引用限定与常量：引用限定符和`const`（）一样可以可以区分重载版本，且置于`const`之后，且具有相同的名字和参数列表的两个方法必须同时添加或不添加引用限定符。类似`const`，引用限定符作用于的同样是`this`对象。
+
+
 
 #### 类静态成员
 
@@ -258,28 +448,26 @@ int main() {
 
 建议：列表初始化是一种非常好的构造方式，容器、数组和聚合类都支持它，构造、赋值都支持它，`initializer_list`也采用这种语法来实现可变数目的入参（比如，参数绑定的`bind`接口）。
 
-#### 迭代器
+#### 迭代器与实现
 
 C++容器基本操作与迭代器设计风格：正向迭代器的范围是从首到**尾后**节点，反向迭代器是从尾到首前节点。擦除只接收正向迭代器。反向迭代器有一个`base`方法用来转换成对应的正向迭代器。插入操作是往迭代器指向的元素前面插入。单向链表与其他容器的设计是相反的，即，往后插入与删除，并拥有首前迭代器。迭代器一般取前闭后开范围。
 
-使迭代器失效的操作：
-
-1. `vector`（`string`）是容量可变的数组，即便未重新分配数组，增删处之后的迭代器、指针和引用也都会失效；
-2. `deque`是双端动态数组，如果删除首尾元素，所有的迭代器、指针和引用不会失效，如果在首尾位置添加元素，迭代器会失效，已有的指针与引用不会失效。可能迭代器是个从中间往两边扩展的链表实现的吧。
-3. 对于`list`(`forward_list`)，容器的迭代器、指针和引用都不会失效，迭代器本身就是个指针（地址数据）。
+1. `vector`（`string`是`char`类型的`vector`）可修改，可随机访问，元素往一个方向追加，存储空间（数组）会重新分配。可变数组`vector`的迭代器就是数组下标的封装。操作位置之后的迭代器、引用和指针会错位。
+2. `deque`[STL](https://www.cnblogs.com/ybf-yyj/p/10185711.html) 的实现基于一个主控可变数组（其元素为指针，指向固定大小的数组段），迭代器由主控数组下标、固定数组段的首尾点及当前点构成。首尾操作无需像`vector`那样移动很多元素，且对元素的引用等不会失效。
+3. `list`(`forward_list`)，迭代器依赖链表节点指针实现，任何操作都不会使迭代器失效。
 
 建议：除了频繁在首尾操作，一般操作频繁的，都选择性能更高的链表类。只是初始化后取内容看的就用向量类。
 
 #### 泛型算法
 
-建议：泛型算法库中的很多函数是容易实现的，比如`fill` `fill_n` `equal` `accumulate`（`numeric`库） `replace` `for_each` `copy` `replace_copy` `replace_copy_if` `find_if` `unique`等，但了解库函数会极大地提高编程效率，比如，可以用算法库中`partation`来快速实现leetcode 283或快排算法，如下为仿写与实现。
+建议：泛型算法库中的很多函数是容易实现的，比如`fill` `fill_n` `equal` `accumulate`（`numeric`库） `replace` `for_each` `copy` `replace_copy` `replace_copy_if` `find_if` `unique`等，但了解库函数会极大地提高编程效率，比如，可以用算法库中`partation`来快速实现leetcode 283或快排算法，如下为仿写、实现。
 
 ```cpp
 #include <algorithm>
 #include <iostream>
 #include <vector>
 
-class Solution {
+class Solution { // leetcode 283
    public:
     template <class ForwardIt, class UnaryPredicate>
     ForwardIt partition(ForwardIt first, ForwardIt last, UnaryPredicate p) {
@@ -331,7 +519,7 @@ int main() {
 
 #### tuple与tie
 
-`tuple`是一种泛化的`pair`，`tie`是一种C++式的多返回类型语法糖。如下为用到了`tie`的leetcode 714实现。
+`tuple`是一种泛化的`pair`，`tie`是一种C++式的多返回类型语法糖。如下为用到了这种语法糖的leetcode 714实现。
 
 ```cpp
 // leetcode 714 买卖股票的最佳时机含手续费
@@ -478,170 +666,9 @@ int main() {
 }
 ```
 
-### :herb: 拷贝控制
 
 
-
-#### 拷贝控制
-
-需要析构（释放动态内存或其他类外资源）的类，一般也需要定义拷贝，来避免指针地址的简单拷贝：不管是类值还是类指针的（两者的区别就是如何拷贝指针成员，前者`new`一个，而后者只是指针地址的赋值，但需要计数，也即模仿`shared_ptr`）；对于类指针的，如果使用智能指针，析构和拷贝就都不需要自定义了。
-
-在类似原址排序的算法中常要用到`swap`操作（它包括一次初始化和两次赋值），为了避免默认泛型交换函数执行默认的拷贝操作，我们通常自定义`swap`接口以减少内存分配操作（尤其是类值的）。
-
-建议：很多时候，我们习惯于用`std::`标明任何来自标准库的名字以降低冲突的可能性，但此处，我们习惯于在使用交换操作的块作用域中的首先声明`use std::swap;`，然后使用不加限定的`swap`以使自定义接口获得优先匹配。
-
-1. 赋值操作的本质是释放原对象、持有一个新对象，“拷贝并赋值”（非引用也非`const`作参数的拷贝赋值定义）使用现成的`swap`接口将极大地简化其实现，并潜在地具有效率优势，不论是类值的还是类指针的：通过将`*this`置换到作为自动变量的入参上以实现隐式的资源释放。
-
-最后，**拷贝并交换**这种写法，使得`swap`接口，非常适合用于对拷贝赋值进行定义，不论是类值还是类指针的类，并同时使类获得了移动赋值运算符。
-
-```cpp
-#include <cctype>
-#include <iostream>
-#include <string>
-
-class HasPtrValueLike {  // value-like
-    friend void swap(HasPtrValueLike &, HasPtrValueLike &);
-
-   public:
-    HasPtrValueLike(const std::string &s = "") : ps(new std::string(s)), i(0) {}
-    HasPtrValueLike(const std::string &s, const int i) : ps(new std::string(s)), i(i) {}
-    HasPtrValueLike(const HasPtrValueLike &hp) : ps(new std::string(*hp.ps)), i(hp.i) {}
-    HasPtrValueLike(HasPtrValueLike &&hp) : ps(hp.ps), i(hp.i) { hp.ps = nullptr; }
-    HasPtrValueLike &operator=(const HasPtrValueLike &hp) {
-        delete ps;  // gc
-        ps = new std::string(*hp.ps);
-        i = hp.i;
-        return *this;
-    }
-    HasPtrValueLike &operator=(HasPtrValueLike hp) {
-        swap(*this, hp);
-        return *this;
-    }
-    ~HasPtrValueLike() { delete ps; }  // p824
-    std::string str() { return *ps; }
-
-   private:
-    std::string *ps;
-    int i;
-};
-inline void swap(HasPtrValueLike &hp, HasPtrValueLike &hp1) {
-    using std::swap;
-    swap(hp.ps, hp1.ps);
-    swap(hp.i, hp1.i);
-};
-
-class HasPtrPointerLike {  // pointer-like
-    friend void swap(HasPtrPointerLike &, HasPtrPointerLike &);
-
-   public:
-    HasPtrPointerLike(const std::string &s = "") : ps(new std::string(s)), i(0), use_count(new size_t(1)) {}
-    HasPtrPointerLike(const std::string &s, const int i) : ps(new std::string(s)), i(i), use_count(new size_t(1)) {}
-    HasPtrPointerLike(const HasPtrPointerLike &hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) { ++*use_count; }
-    HasPtrPointerLike(HasPtrPointerLike &&hp) : ps(hp.ps), i(hp.i), use_count(hp.use_count) {
-        hp.ps = new std::string();
-        hp.use_count = new size_t(1);
-    }
-    // copy assignment operator
-    // HasPtr2 &operator=(const HasPtr2 &hp) {
-    //     // desctructor
-    //     if (--*use_count == 0) {
-    //         delete use_count;
-    //         delete ps;
-    //     }
-    //     // copy constructor
-    //     ps = hp.ps;
-    //     use_count = hp.use_count;
-    //     i = hp.i;
-    //     ++*hp.use_count;
-    //     return *this;
-    // }
-    HasPtrPointerLike &operator=(HasPtrPointerLike hp) {
-        // void swap(HasPtr2 &, HasPtr2 &);
-        swap(*this, hp);
-        return *this;
-    }
-    // destructor
-    ~HasPtrPointerLike() {
-        if (--*use_count == 0) {
-            delete use_count;
-            delete ps;
-        }
-    }
-    // a getter
-    std::string str() { return *ps; }
-    int get_use_count() { return *use_count; }
-
-   private:
-    std::string *ps;
-    size_t *use_count;
-    int i;
-};
-inline void swap(HasPtrPointerLike &hp1, HasPtrPointerLike &hp2) {
-    swap(hp1.ps, hp2.ps);
-    swap(hp1.use_count, hp2.use_count);
-    swap(hp1.i, hp2.i);
-};
-
-int main() {
-    HasPtrValueLike hp("11", 11), hp1("12", 12), hp0;
-    swap(hp, hp1);  // hp: 11->12
-    hp0 = hp;       // hp0: 0->12
-    std::cout << hp0.str() << std::endl;
-
-    HasPtrPointerLike hp3("21", 21), hp4("22", 22), hp2;
-    swap(hp3, hp4);  // hp3: 21->22
-    hp2 = hp3;       // hp2: 0->22
-    std::cout << hp2.str() << ", " << hp2.get_use_count() << std::endl;
-
-    std::cout << std::endl;
-}
-```
-
-4 右值引用与移动：A. 赋值、下标、解引用和前置增减运算符都返回左值引用（用的是对象的身份、内存中的位置），而算术、关系、位及后置增减运算符都返回右值（用的是对象的值、内容），后者，我们不能把左值引用绑定到上面，但是，我们可以把一个`const`的左值引用绑定上去。B. 右值引用是为了给移动操作用的，只能绑定在将要销毁的对象上。我们虽然不能把右值引用绑定到左值上，但是，可以`move`可以显式地将一个左值转变成一个右值引用类型。C. 为了使自定义的类能支持像库里的类拥有的那样的移动操作，需要自定义移动构造函数与移动赋值运算符，否则，`move`会调用拷贝接口。移动操作设计的要点是：接收输入对象的内容，将输入对象置空，并且，由于不会分配资源，而是窃取，所以一般不会抛出异常，所以，最好要加上`noexcept`标注，避免标准库做额外的处理，否则，比如说，一个持有自定义类型作为元素的`vector`，它采用移动来实现数组的扩充，拷贝过程中的问题不影响原数据，但是移动会，所以，没有声明自己不会抛出错误的元素类型，`vector`不会调用该元素类型的移动操作，而是调用拷贝。D. 自定义的移动赋值运算符，需要滤过自赋值的情况，因为在接管新资源前，需要释放`this`的旧资源，而我们不能在用之前就释放那些资源。E. 合成移动操作的条件是：未定义任何拷贝操作，且每个非`static`的数据成员都是可以移动的（内置类型可移动，类类型需要有对应的移动操作）。F. 拷贝和移动的参数一般都是`const T&`和`T&&`。G. 引用限定符和`const`限定类似地作用于非`const`对象，它的作用是：如果`string`有限定赋值运算符的对象是左值的话，就不会出现`str1+str2="wow"`这种情况了；且一旦一个方法有移动标记，所有方法就都要标记。
-
-```cpp
-#include "hello.hpp"
-using namespace std;
-class HP {
-    int i;
-
-   public:
-    int get() { return i; }
-    HP() : i(0) {}
-    HP(int i) : i(i) { cout << "construct with " << i << endl; }
-    HP(const HP &hp) : i(hp.i) { cout << "copy with " << i << endl; }
-    HP(HP &&hp) : i(hp.i) {
-        hp.i = 100000;
-        cout << "move with " << i << endl;
-    }
-    HP &operator=(HP &hp) {
-        i = hp.i;
-        cout << "assign with " << i << endl;
-        return *this;
-    }
-    ~HP() { cout << "die with " << i << endl; }
-};
-
-int main() {
-    HP hp();
-    HP hp1 = hp();
-    cout << hp1.get() << endl;
-
-    vector<int> a{1, 2, 3};
-    auto b = move(a);
-    cout << b.size() << " " << a.size() << endl;
-}
-
-HP hp() {
-    HP hp(9);
-    // return hp;
-    return move(hp);
-}
-```
-
-5 移动迭代器、引用限定与常量：引用限定符和`const`（底层`const`表示不更改所引用对象的值，而顶层`const`表示不再改去引用其他对象；在 C++11 新增的型别推导中，`auto`只取底层，`decltype`会连顶层一块取）一样可以可以区分重载版本，且置于`const`之后，且具有相同的名字和参数列表的两个方法必须同时添加或不添加引用限定符。类似`const`，引用限定符作用于的同样是`this`对象。
-
-### 继承与可访问性
+### 继承与可访问性**
 
 1 继承与动态绑定、可访问性：A. 与Java不同，C++需要显式地将基类方法标记为`virtual`以启用动态绑定，并且要求是指针或引用类型的变量（虚析构函数也利用这一机制）。B. 关于数据成员的继承，派生类完全具备基类的内容，但不一定有访问权限，`protected`则是一种真正意义上的权限“继承”：外部无权访问，但派生类可以访问；同时，派生类中只能访问派生类自己所有的那部分继承过去的成员，而不能获取基类对象的该成员。C. 继承中的方法的实现方式，本质上是这些方法隐式地持有一个`const`的类对象引用。如果将派生类当作/强制转换（非指针或引用）为基类的话，派生类中非基类的部分将被“切掉”。同时，如果想使用特定被继承类的`virtual`方法，则可以加入类作用域符号。D. 在不同作用域中无法重载函数名。派生类的作用域嵌套在其基类的作用域之内（除了部分基类内容受访问控制的限制不能访问外）。因此，当派生类重用基类的名字时，基类的同名（甚至方法参数不一样也如此）内容就被覆盖了，但我们仍然可以通过类作用域符号引用那些被隐藏的内容。
 
