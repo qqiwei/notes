@@ -1,534 +1,609 @@
-## C++ Primer 5th 笔记
+## C++ Primer Notes
 
+---
 
+C++ Primer, 5th ed. （CPPP）已读
+Effective Modern C++. （EMCPP）未读完
+C++ Concurrency in Action, 2nd ed. （CPPC）未读
+...
+
+---
 
 #### I
 
-###### 常量限定、常量区、`const &`
+###### :heart: 常量限定、引用、`const &`、常量区、右值引用、右值、临时对象的生命、移动
 
-本质上，**常量限定** 是一种声明以使编译器代为检查一个变量不会被修改的语法糖，而 C++ 也提供了`const_cast`强制转换以支持在必要的时候剥去常量限定，不管是底层还是顶层的常量限定。有了常量限定这样的语法特性和编译器检查支持，我们在定义一个变量（函数参数）的时候，如果不改动就最好标示出来，即：加`const`限定，以及，用引用代替指针。
+1. **指针的常量限定** 分两种：顶层和底层，分别表示不指向其他地址（比如，`this`指针本质上就是一个顶层常量指针，类似`ClassType *const this;`；而引用，本质上也就是一个没有空指针 **解引用** 问题的、不需要显式解引用的顶层常量指针，因为它在定义的时候强制要求初始化，且后续不许改引其他对象）和不改变所指向地址处的内容。常量限定的语法为：`const *const int ci`，其中，解引用符右边的`const`表示顶层常量（一般直接用引用做参数的顶层限定更加方便，比如`const &`），而底层常量限定的位置与C语言一致。本质上，常量限定是一种声明以使编译器代为检查一个变量不会被后续代码修改的语法糖，而 C++ 也提供了`const_cast`强制转换以支持在必要的时候屏蔽编译器的语法检查，使变量得以新的常量限定方式来指向原对象。
 
-1. 指针的常量限定分两种：顶层和底层，分别表示不指向其他地址（比如，`this`指针本质上就是一个顶层常量指针，类似`ClassType *const this;`；而引用，本质上也就是一个没有空指针解引用问题的、不需要显式解引用的顶层常量指针，因为它在定义的时候强制要求初始化，且后续不许改引其他对象）和不改变所指向地址处的内容。语法为：`const *const int ci`，其中，解引用符右边的`const`表示顶层常量（一般直接用引用做参数的顶层限定更加方便，比如`const &`）。
-2. 常量限定，可以使变量被更清晰地表达、描述和限定；同时，既能接受一个非常量类型，又能接收非常量限定的类型所不能接受常量限定类型 —— 比如，函数的形参类型经常要首先考虑是否可以被设计为 **`const &`** 这种双重常量限定：它的引用（它本身作为顶层常量限定并不否认会修改所引的对象的值）表达了这个变量在函数的作用域中将一直指向一个那个初始化给它去引用的对象（内存块），而它也因为底层`const`限定声明不修改所引用的对象而既可以持有一个不管只是常量限定声明过的底层常量，还是一个字面值（字面值就是常量的意思，而且往往用来表示特定数据类型的底层常量，比如一个在内存布局上分配在无法编辑的 **常量区** 的字符串字面值；常量区是底层的操作系统分配并限定了的只读内存段，而常量限定只是用户态的编译器提供的语法支持。用`const_cast`强制转换一个字符串字面值并编辑会导致运行时错误），也可以持有一个无限定的变量。只有常量引用`const &`可以持有一个右值（比如一个数值字面量），这使它就像C++ 11引入的右值引用（巧的是，也就只有模板或`using`别名定义中的右值引用`&&`才既可以绑定到右值又可以绑定到左值引用上，与其说存在一个叫引用折叠的机制，不如说程序语言在设计上的预期就是为了赋予它持有任何类型的能力，只不过模板参数上还能保留了原有的类型限定）一样。
+2. 有了常量限定这样的语法特性和编译器检查支持，我们在定义一个变量（函数参数）的时候，如果不改动就最好标示出来，即：加`const`限定，以及，用引用代替指针，这样可以使变量被更清晰地表达、描述和限定，同时，可以避免后期偶然引入的修改违背原本的设计初衷。而 **`const &`** 这样底层和顶层都是常量限定的类型，既能接受一个非常量类型，又能接收非常量限定的类型所不能接受常量限定类型，往往作为优选考虑的函数形参限定类型 ——  它的引用（它本身作为顶层常量限定并不否认会修改所引的对象的值）表达了这个变量在函数的作用域中将一直指向一个那个初始化给它去引用的对象（内存块），而它也因为底层`const`限定声明不修改所引用的对象而既可以持有一个不管只是常量限定声明过的底层常量，还是一个字面值（字面值就是常量的意思，而且往往用来表示并非程序中可取地址的内存空间中的对象，比如一个在内存布局上分配在无法编辑的 **常量区** 的字符串字面值；常量区是底层的操作系统分配并限定了只读的内存段，而常量限定只是用户态的编译器提供的语法支持；编译器不会检测被`const_cast`强制转换的对象是不是一个字符串字面值，所以，人为剥去其底层常量属性来欺骗编译器，并编辑，会导致运行时错误），也可以持有一个无限定的变量。
+   
+   [理解右值和右值引用_peng1ei的博客-CSDN博客_右值和右值引用](https://blog.csdn.net/pl20140910/article/details/82383143)
+   [右值和左值的区分即右值引用的理解_cj213的博客-CSDN博客_右值引用和左值引用的区别](https://blog.csdn.net/cj213/article/details/107646169)
+   [C++左值引用，const左值引用，右值引用，const右值引用_孤独的猿行客的博客-CSDN博客_const右值引用](https://blog.csdn.net/u013323018/article/details/106490193)
 
-###### 指针、数组、结构体、字符串、传值
+3. 只有常量引用`const &`可以持有一个右值（比如说，一个数值字面量。它通常是没有变量持有的、“阅后即焚”的、不可修改的。毕竟，变量持有就是为了实现包括修改在内的反复使用；而给一个原本可编辑的变量加一个常量限定，就是为了借助编译器的常量限定检查来看护程序原本的设计。有必要再辨识的是，字面值常量与临时对象这两种声明周期迥异的东西，为何会被统一在 **右值** 这里呢？其实，发生得太快与亘古长存的共同点就在于它都没有留给我们一个可操作的空间。一些瞬间让你感觉就像是永恒，就像一见倾心地坠入爱河，就像事物不可避免的衰亡，是无法抗拒、无法去算计的；而无法去爱、无法在夜晚入睡的人们兴许有幸能明白终究是不值得交付于声色犬马、追名逐利的，囿于意识形态的惯性、画地为牢，还是从幻境中觉醒，这是个问题），这使它就像现代C++引入的右值引用符号 **`&&`**（右值引用的存在是为了减少拷贝，提高内存操作的效率，搭配的移动操作则有点儿类似于想要实现一种就像Java中的对象那样低成本的引用赋值能力。具体地，Java中即便是右值对象也是被当作引用的，而C++只能借助于指向对象的指针或引用来实现这样的低成本拷贝，为了直接在对象而非指针上实现引用的“迁移”，现代C++煞费苦心地引入了这些语法机制，为的就是提高右值的内存操作效率，使类对象的属性不被频繁地拷贝、使 **临时对象的生命** 不只是为了构造另一个对象而在完成拷贝后就释放，而是在移动的过程中，被构造或赋值的对象完全接管右值的属性，而这个临时对象在被释放的时候应该早已变成一个空的躯壳，这就有点儿像是Java中只能被引用的对象的味道了。具体内容，详见于后文有关拷贝控制与移动的部分。总之，这里的右值引用符号 `&&` 就像是常量引用限定符一样，使被限定的模板类型的变量既可以持有一个右值，也可以持有一个左值）在模板或`using`别名定义中的情况。所以，与其说存在一个叫“万能引用”的语法、一个叫引用折叠的语法机制，不如说在C++在语言设计上的预期就是为了赋予它持有任何类型的能力。P.S. 三种 模板型别推导 的情况（EMCPP.1）——
+   
+   - `template<typename T> void f(T& param)` （指针的推导与引用的类似。同时，从这里也能看得出来，引用作为顶层常量，是不会对底层常量限定产生影响的。）
+     
+     | Use Cases           | T           | param         |
+     | ------------------- | ----------- | ------------- |
+     | `f(t)`              | `int`       | `int &`       |
+     | `f(ct)` or `f(rct)` | `const int` | `const int &` |
+   
+   - `template<typename T> void f(T&& param)`（在引入右值引用之前，对象要么像上面那样被引用，要么像下面那样被拷贝。而右值对象，或者说临时对象和字面值常量，曾经只能传递给像下面那样的接口，但对于现代C++来说，支持 **移动** 的对象有了像这里列举的第三种选择：对于内置类型来说，下面的示例就仅仅只是示例而已，但是，对于复杂的、持有通常被一个底层指针所引用的大量资源的大对象来说，能够不在目的对象之上进行这些资源的空间申请、拷贝、然后释放源临时对象的资源的话，自然是值得去选择的。）
+     
+     | Use Cases           | T             | param         |
+     | ------------------- | ------------- | ------------- |
+     | `f(t)`              | `int &`       | `int &`       |
+     | `f(ct)` or `f(rct)` | `const int &` | `const int &` |
+     | `f(27)`             | `int`         | `int &&`      |
+   
+   - `template<typename T> void f(T param)`（拷贝）
+     
+     | Use Cases                   | T     | param |
+     | --------------------------- | ----- | ----- |
+     | `f(t)`, `f(ct)` or `f(rct)` | `int` | `int` |
+   
+   类似地，`auto`的型别推导，只需要用`auto`将上面三种情况中模板参数`T`等价替换即可（EMCPP.2）。唯一的区别是，在引入`auto`时，对同时被扩充为统一初始化的大括号语法做了向初始化列表类型`initializer_list`的转换，没错，C/C++就是喜欢搞些个隐式转换，哈哈；而模板是亘古就有的，为了保持对旧代码的兼容性，只能让模板和自动型别的推导机制不完全一致了。这就好像是在集合框架完善之前的某些Java接口没法接受一个`List`或`Iterator`而只接受一个数组或`Enumeration`一样令人遗憾，类似的小事情是某些新语言无需苦恼的，它们生来就有很多其他语言的历史经验可借鉴。
 
-如果将引用（或指针）看作一种表示地址的数据类型，那么底层和顶层常量就只是数据类型是地址还是其他类型之间的区别。但是，这种间接引用的能力是必要的，尤其是对于庞大的结构体来说，**间接引用** 可以避免函数调用传参过程中大量的值拷贝（我们可以把C系语言的传参都看作是传值的，只不过有些值是表示地址的，需要二次地、间接地引用才能操作到真正的数据），这同 Java 中一切（非内置类型的）对象都是引用的出发点是一致的。此处，参考作为 “21世纪C语言” 的 Go，可以更好地理解数组、字符串、函数、引用、面向对象等概念在C系语言中存在的意义。
+###### 数组、数组维度、`sizeof`、编译期、结构体、类、字符串、值传参
 
-1. 数组的维度 —— 首先，数组可以看作是一个成员（元素）类型一致的数据结构（或类、结构体），它的 **维度** 是数组这个数据结构类型的一部分，就像C++ 11引入了显式指明容量的`std::array<T, N>`与 Go 的`make(chan)`等语法暗示的那样。有时候，我们认为数组就是指向它底层元素数据类型的指针，数组名和顶层常量指针是一样的；除了它是一种内置的基本的数据结构而我们对它太过熟悉之外，C/C++ 在数组（或函数）与指针之间做的隐式转换加深了的这种错觉。实际上，数组是一个复合类型，它比其底层数据高一个维度；如果对一个指向数组的指针做自增，将移动到数组的`end`处（这个跨度是可获知的原因，也是因为数组的维度是数组类型的一部分，因而事实上不需要真正拿到一个运行期的数组对象，而是在编译期就能静态地获取到数组的整体大小：`SizeOfArrayMemberType * SizeOfTheArray`），这也是`sizeof`有能力取了数组大小（而非元素指针的大小）的缘故。新版本的数组可以动态地初始化其大小，毕竟，数组不是非得定义在栈上，也可以动态地定义在堆上，它仍然是有大小的，仍然是连续的。
+如果将引用（或指针）看作一种表示地址的数据类型，那么底层和顶层常量就只是数据类型是地址还是其他具体类型之间的区别（我们可以把C系语言的传参都看作是传值的，只不过有些值是表示地址的，需要二次地、间接地引用才能操作到真正的数据）。但是，正如我们所了解到的，这种 **间接引用** 是必要的，尤其是对于庞大的结构体来说，可以避免函数调用传参过程中大量的值拷贝，这同 Java 中一切（非内置类型的）对象都是引用的出发点是一致的。此处，参考作为 “21世纪C语言” 的 Go，可以更好地理解数组、字符串、函数、引用、面向对象等概念在C系语言（其实，也包括Java）中存在的意义。
 
-    ```cpp
-    // test_sizeof_array.cpp
-    
-    #include <iostream>
-    
-    /* [see] what means an array in c/cpp. */
-    
-    constexpr int power(int i) { return i * i; };
-    
-    int main() {
-        // +--------+--------+-----+--------+-----+
-        // |  a[0]  |  a[1]  | ... | a[N-1] | ... |
-        // +--------+--------+-----+--------+-----+
-        // ^        ^              ^
-        // &a[0]    &a[1]          &a[N-1]  &a[N]
-        //  ^                                ^
-        // (&a)                           (&a) + 1
-        long long a[power(2)]{0, 1, 2};
-        
-        // [statically] array name as a pointer(top-level const)
-        std::cout << *(&a + 1) - a << ", " << sizeof a / sizeof *a << std::endl;
-    
-        int N;
-        std::cin >> N;
-        
-        // [dynamically] new an array
-        int ad[N];
-        std::cout << *(&ad + 1) - ad << ", " << sizeof ad / sizeof *ad << std::endl;
-    }
-    
-    // 4, 4
-    // 5
-    // 5, 5
-    ```
+1. 数组维度 —— 首先，数组可以看作是一个成员（元素）类型一致的数据结构（或类、结构体），其次，它的长度也是数组这个数据结构类型的一部分，就像现代C++引入了显式指明容量的数组`std::array<T, N>`与 Go 的`make(chan)`等语法暗示的那样，它其实是一个非类型模板参数。有时候，我们认为C/C++的数组就是指向它底层元素数据类型的指针，而数组名和顶层常量指针是一样的。但是，实际上，数组是一个复合类型，它（**`int [N]`**）比指向其底层数据的指针（**`int *`**）高一个维度，二者完全是不同的类型（除了它是一种内置的基本的数据结构，而我们对它太过熟悉之外，源自C语言的那种在数组（或函数）与指针之间做的 **隐式转换** 加深了的这种错觉，而这只是C在设计之初为了完全避免数组整个作为结构体拷贝传参造成大量内存开销）；而如果对一个指向数组的指针做自增，将移动到数组的`end`处，这个跨度是可获知的原因，也是因为数组的长度是数组类型的一部分，而这同时也是 **`sizeof`** 有能力取到数组大小（而非元素指针的大小）的缘由。P.S. Java曾经可以嘲笑C++不能动态给定数组大小，但现代C++的数组也可以动态地初始化其大小了。毕竟，数组不是非得定义在栈上，也可以动态地定义在堆上，它只要仍然是给定大小的，且元素的内存分布仍然是连续的，他就仍然还该被看作是一个数组；但这种动态指定长度的数组必然违背了 **非类型模板参数** 要求一个常量表达式的限制，所以，可以猜测这个要求也是一种编译器行为。受限于C语言的指针隐式类型转换，函数形参类型不可以是数组类型，但是，C++函数形参可以是数组类型的引用，外加数组长度作为数组类型的一个非模板参数，以此可以实现一个别样的数组长度获取器（EMCPP.1）；只不过，数组的大小虽然依然还是数组类型的一部分，但是，这个方式是过不了编译器对非类型模板参数必须接受一个常量表达式的限定的，这也算是为了兼容旧版本的限制，所以，就不像是随数组做了功能扩展之后的`sizeof`那样可以获取动态给定大小的数组的长度了。
+   
+   ```cpp
+   // test_sizeof_array.cpp
+   
+   #include <iostream>
+   
+   /* [see] what means an array. */
+   
+   constexpr int power(int i) { return i * i; };
+   
+   template <typename T, std::size_t N>
+   constexpr std::size_t arraySize(T (&)[N]) noexcept {
+       return N;
+   }
+   
+   int main() {
+       // +--------+--------+-----+--------+-----+
+       // |  a[0]  |  a[1]  | ... | a[N-1] | ... |
+       // +--------+--------+-----+--------+-----+
+       // ^        ^              ^
+       // &a[0]    &a[1]          &a[N-1]  &a[N]
+       //  ^                                ^
+       // (&a)                           (&a) + 1
+       long long a[power(2)]{0, 1, 2};
+   
+       // [statically] array name as a pointer(top-level const)
+       std::cout << *(&a + 1) - a << std::endl;
+       std::cout << sizeof a / sizeof *a << std::endl;
+       std::cout << arraySize(a) << std::endl;
+   
+       int N;
+       std::cin >> N;
+   
+       // [dynamically] new an array
+       int da[N];
+       std::cout << *(&da + 1) - da << std::endl;
+       std::cout << sizeof da / sizeof *da << std::endl;
+       // std::cout << arraySize(da) << std::endl;  // not OK
+   }
+   
+   // 4
+   // 4
+   // 4
+   
+   // 6
+   // 6
+   // 6
+   ```
 
-2. 动态数组 —— Go 的字符串和切片基于动态数组，它封装了有关容量、长度的信息（可以参考`reflect.SliceHeader`中对切片类型的定义：它包含容量`Cap`、长度`Len`和一个指向底层数组的`Data uintptr`），本质上，它与其他高级语言（C++中的`std::vector`、`std::string`，Java中的`ArrayList`，它们都是从堆上申请空间来完成底层数组“ **动态** ”扩缩容的）差不多，只是把程序语言发展过程的经验内化到Go的语法里而已。语法上，Go中的切片（由于也内置地用了标签对来表示，而不像C++或Java那样是标准库）和数组很容易混淆。其中，数组标签对中必须有东西（“维度”，`[...]type`表示由编译器推导数组的长度），而切片没有维度，毕竟，它的长度是动态变化的。
+2. 静态与对象的类型 —— 习惯上，C/C++ 被形容为是一种 **静态**（而P.S. P.P.S. Java中的局部变量未定义之前是无法使用的，而C++的变量声明会尝试去调用默认构造函数。）、弱类型（偏向于容忍隐式转换，C++经常通过构造函数实现类型转换，并用`explict`限定来阻止这种隐式转换的行为，并且可以为很多运算符，比如，输入输出或算术运算符，提供自定义的能力，仿佛被输出的是字符序列或被运算的是数值类型。Java和Python是强类型的，数值在与字符串类型进行拼接的时候，必须为数值类型套一个`str()`的手动转换，Java的接口和运算符在处理类型的时候也是一板一眼的，Go也是强类型的，只能显式地通过`unsafe.Pointer`实现类型转换）的语言。对于运行于服务器的程序来说，依赖隐式转换虽然会给代码编写者带来一些视觉上的美感，但对于服务器的安全来说却是有风险的。
+   
+   Python就是一种动态语言了。面向对象的继承性关系（is-a）没有违反静态的属性，而
+   
+   ；但本质上其实是要求变量一旦声明之后，就只能在任何任何时候都具有一种类型，而汇编语言直接按字节来操作内存因而被看作是无类型的
+   
+   a. 静态，指的是变量，在其作用域内，一旦声明，就只能持有所声明类型的对象。对比来说，像Python这样的动态语言中的变量就不是“装箱式”的，而是“贴标签式”的，是可以随时改持任意类型对象的。静态是关注运行效率的，而动态解释性的语言往往用作客户端脚本，而非服务器等。
+   
+   正是因为变量类型最多也只能在继承体系下变化，所以，变量类型和所占用空间的大小都是确定的，这可以为内存空间分配的效率提高创造机会，而不必在使用中去断言对象的类型。
+   
+   1. 依赖虚函数表的动态绑定、父类转子类`reinterpret_cast`与RTTI等机制部分地减弱了静态语言的属性，就像golang的`interface{}`、Java的`Object`以及它们各自的运行时反射机制那样，但是数据结构所占空间的大小是固定的，包括像切片或动态数组那样，也只是成员包括一个指向可能发生变化的内存块的指针而已。
+   
+   2. 类的大小是固定的（泛型类也能在编译期间就将模板参数确定下来；像`string`和`vector`这样的可变容器类的大小也是固定的，只不过其所持有的可变数据段是动态分配的），这就是`sizeof(Type or object)`、`sizeof object`能获取类型（对象）大小的缘由。
+   
+   3. P.S. `sizeof`返回的类型是一个`unsigned`整型的别名`size_t`，其长度决定于具体机器（为了节省内存的机器）；类似这样直接继承自最早版本的C的 **不可移植** 特性还有位域（字段排序可能会不一致）和`volatile`（不做暂时从寄存器取用的优化）。
 
-3. 结构体（类） —— Go 看着像引用的行为都是建立在底层是一个指向数据块内容的指针之上的，比如切片（和字符串）或者字典类型作为函数参数传递的时候，是整个数据结构的值拷贝，只不过拷贝 **指向底层数组的指针**（和数组长度值）可以避免真正去拷贝大段数组里的数据。这也是`append(sliceObj, sliceObjOrVal)`要返回一个新切片的缘故，因为除了底层数组指针`Data`外，入参切片的`Len`和`Cap`表示两个长度值的成员也是传值而不是传引用进去的，所以，需要组装一个新的结构体返回给调用者。最后，在这一点上，它与Python中的同名接口是不一样的，`pySliceObj.append(obj)`是切片对象的方法，与Go这种C函数的风格不同。这并不是说Go不支持面向对象，而是说在处理切片和字典这些内置数据类型的时候，并没有将它看作类，而是像处理C系语言原生的数组一样，虽然它本质上就是一个数据结构。类似地，Go中类的方法也是要显式地指出其接收器对象的，这就像是以结构体指针为首参数来实现面向对象编程思想的那种C语言的风格（而C++和Java等语言有 **隐式的 `this`** 指针，当然，C的结构体是没有继承与动态绑定能力的），虽然它确实是面向对象的（甚至它部分地实现了C++的多继承与Java的接口特性），而且也具有类的命名空间那种隔离名字污染的能力（否则，函数名就要变得很冗长）。而在C++中也还能看到这种实现风格的“遗迹” —— 在需要通过捕获或者需要指明成员函数指针的所属类以实现一个可调用对象的时候，比如，`function<callableObjReturnT (BoundClassT *)> fp2mf = &BoundClassT::mf`获取到被绑定类的成员函数的指针以作可调用对象（因为类的非静态方法不同于普通函数，需要显式提供一个对象才可用，这里的`BoundClassT *`就是`this`指针的显式版；而类方法之所以能被找到，是因为存在一个潜在的名字查找机制，即，当参数是类的时候，**类的命名空间** 也会被纳入到查找的范围中）。
+3. Golang 的切片、结构体与函数参数值传递 等 —— Go 的字符串和切片基于动态数组，它 **封装** 了有关容量、长度的信息（可以参考`reflect.SliceHeader`中对切片类型的定义：它包含容量`Cap`、长度`Len`和一个指向底层数组的`Data uintptr`），本质上，它与其他高级语言（C++中的`std::vector`、`std::string`，Java中的`ArrayList`，它们都是从堆上申请空间来完成底层数组“动态”扩缩容的）差不多，只是把程序语言发展过程的经验内化到Go的语法里而已。
+   
+   1. 看起来，Go中的切片（由于也内置地用了标签对来表示，而不像C++或Java那样是标准库）和数组很容易混淆，但数组标签对中必须有东西（“维度”，`[...]type`表示由编译器推导数组的长度），而切片没有，毕竟，它的长度是动态变化的。
+   
+   2. Go 看着像引用的行为都是建立在底层是一个指向数据块内容的指针之上的，比如切片（和字符串）或者字典类型作为函数参数传递的时候，是整个数据结构的值拷贝，只不过拷贝指向底层数组的指针（和数组长度值）可以避免真正去拷贝大段数组里的数据（这同Java中对象的传参本质上是传对象的引用是不同的；反过来说，正是因为C不支持传递引用，所以，为了优化内存性能，数组才被默认转换成了指针）。这也是`append(sliceObj, sliceObjOrVal)`要返回一个新切片的缘故，因为除了底层数组指针`Data`外，入参切片的`Len`和`Cap`表示两个长度值的成员也是 **传值** 而不是传引用进去的，所以，需要组装一个新的结构体返回给调用者。在这一点上，它与Python中的同名接口是不一样的，`pySliceObj.append(obj)`是切片对象的方法，与Go这种C函数的风格不同。这并不是说Go不支持面向对象，而是说在处理切片和字典这些Go的内置数据类型的时候，并没有将它看作类，而是像处理C系语言原生的数组一样，虽然数组本质上也还是数据结构。
+   
+   3. 此外，Go 的零长数组也是数组作为数据结构（至少包含一个长度信息）的另一个暗示。而由于 Go 有了切片类型，所以数组传参可以被设计为 **数组的值拷贝**，使其数组更像是一个成员是一些重复类型元素紧挨在一起（外加数组长度）的数据结构。C/C++的数组隐式地不做内容拷贝，而是在传参的时候自动退化成或者说仅取其指针，就像复杂结构体在函数之间传递往往用指针（或引用）一样，C系语言函数将数组类型自动转换成对应元素类型的指针，以此来避免大量的值拷贝；这种自动退化也导致C/C++一般需提供额外参数以表示数组的大小。可以认为这是C/C++定义在编译器上的机制，即在将数组名传给函数的时候，编译器将它降维转成了数组这个数据类型底层的成员数据块的首地址，也可以认为是有能力覆盖一个类的拷贝和赋值接口的默认定义的C++对数组类型的接口的一种重定义。Go的强类型性提高了代码的明晰度，而不支持引用的唯一麻烦也许就是要对指针类型的实参进行判空吧。
+   
+   4. Go 的其他语法设计感：
+      
+      - Go认为重载名字看起来是令人困惑的，因为函数实参类型在代码中是不显示的，而没有人会想要在读到一个接口的调用点时，还需要去依赖API并跳转到实参定义点获知形参类型，才能大概猜测到这个接口是哪个与要做什么。因此，Go采纳了类的命名空间和接口属性，否决了重载，这看起来是最优方案了。C++和Java语言既支持类的命名空间的能力，又不放弃重载。
+      
+      - 与Go语言相比，C++函数与结构体定义同时作为第一公民，依靠头文件声明及定义的文件拆分与分离式编译而不是模块来组织源码，存在部分语法结构顺序混乱导致的解析困难等历史包袱（这些吐槽的依据散见于后续章节中与Go的比较），这些都导致了开发与阅读C++代码更加困难，而且IDE支持也比不上Java等语言。
+      
+      - 当然，C/C++的优势在于内存分配是控制在程序员手中的，而有垃圾回收机制就会有性能下降问题。现代C++通过引入智能指针、右值引用与移动等大量机制与库来强化其内存管理机制、而Java设计者与应用程序员不断对JVM进行性能调优，皆因想它们都想在内存管理的便利性与效率之间寻找到一个平衡点，而Go的设计站在了前辈们的肩膀上。
 
-4. 函数的值传递 —— Go 的零长数组也是数组作为数据结构（至少包含一个长度信息）的另一个暗示。此外，由于 Go 有了切片类型，所以数组传参可以被设计为 **数组内容的值拷贝**，使其数组更像是一个成员是一些重复类型元素紧挨在一起（外加数组长度）的数据结构。C/C++的数组隐式地不做内容拷贝，而是在传参的时候自动退化成或者说仅取其指针，就像复杂结构体在函数之间传递往往用指针（或引用）一样，C系语言函数将数组类型自动转换成对应元素类型的指针，以此来避免大量的值拷贝；这种自动退化也导致C/C++一般需提供额外参数以表示数组的大小。可以认为这是C/C++定义在编译器上的机制，即在将数组名传给函数的时候，编译器将它降维转成了数组这个数据类型底层的成员数据块的首地址，也可以认为是有能力覆盖一个类的拷贝和赋值接口的默认定义的C++对数组类型的接口的一种重定义。
+4. 对象与类的命名空间 —— 类似C，Go中类的方法也是要显式地指出其接收器对象的，这就像是以结构体指针为首参数来实现面向对象编程思想的那种C语言的风格（而C++和Java等语言有 **隐式的 `this`** 指针或对象引用，当然，C的结构体是没有继承与动态绑定能力的），虽然它确实是面向对象的（甚至它部分地实现了C++的多继承与Java的接口特性），而且也具有 **类的命名空间** 那种隔离名字污染的能力（否则，就要像C语言那样，函数名会变得很冗长，因为C语言和Go都不支持重载）。而在C++中也还能看到这种实现风格的“遗迹” —— 类的方法指针需要（或通过捕获）提供一个成员函数所属类的对象，以实现一个可调用对象，比如，在`function<callableObjReturnT (BoundClassT *)> fp2mf = &BoundClassT::mf`中的模板参数类型，就是所构造的可调用对象的参数类型，即，一个 **方法指针**，在被调用的时候需要提供一个属于该类的对象作为入参。类的非静态方法不同于普通函数，它要求给它一个该类的对象也相当于将方法的类型限定在了这个类上，而这种限定性使得方法指针与普通函数指针有所不同，即，它归属于某个结构体，而支持反射机制的Java的方法没有函数类型的概念，因为一切函数皆处于某个类的作用域或者说命名空间中。
 
-5. 字符串的可编辑性 —— 常量数组相当于将每一个元素都做了底层常量限定（但通过强制类型转换依然是可编辑其元素的；除非，底层数据块是存于常量区的，写操作会在运行时抛出异常），就像对象或类方法的`const`限定声明了对象也就是说它的成员不能被编辑一样。
+5. 字符串的可编辑性：
+   
+   1. 常量数组相当于将每一个元素都做了底层常量限定（但通过强制类型转换依然是可编辑其元素的；除非，底层数据块是存于常量区的，写操作会在运行时抛出异常），就像对象或类方法的`const`限定声明了对象也就是说它的成员不能被编辑一样。与字符串字面值位于常量区，或者局部的数组分配在栈上不同的是，字符串`std::string`本质上其实是一个`char`类型的`std::vector`，它的数据分配在堆上，且基于动态数组的字符串类是可修改的。对比之下，Go 同样基于动态数组的字符串类本质上也是可编辑的，只不过该类并没有提供 **修改接口**，所以才说它不可变的，即，Go的字符串就像是一个裁掉了修改接口的字符类型的动态数组。但我们仍然可以通过`unsafe`（我是不可变的，你非要修改，我也是有办法的，但我提醒你这是危险的）库直接操作底层数据，只不过有时候这种强行重新解释数据类型的操作很可能在将错误掩盖并延后到运行时，因为可能持有的字符串字面值依然是存放在不可修改的常量区的。P.S. 强制类型转换依赖于“中介”`unsafe.Pointer`，还需要地址计算的话就再加一个“中介”`uintptr`，这种对隐式转换的杜绝是安全利好的。
+   
+   2. C++的`std::string`对其构造和赋值函数的定义是对入参做 **逐字符拷贝**，这里的入参包括任何有意义的字符序列，比如说，C风格的字符串指针，即，以`\n`结尾的字符指针，也包括字符串字面值（也是C风格的字符数组，只是分配在常量区），以及，其他字符串对象（拷贝构造、赋值）。因为C++标准库对字符串做了这种自定义，所以，使用C++的字符串做函数参数时常常伴随着引用绑定，而Go往往直接传字符串而不必通过指针来传递，这同样也类似于切片结构体的值传递，而且它又没提供修改接口，所以直接值拷贝就可以了，毕竟，拷贝一两个表示长度的整型不算事儿，而使用C++就要小心了，一不小心就会陷入到值拷贝（它适用性最广的原因是：除非你定义了移动语义，否则，在这之前，你无法指向一个寄存器中的临时对象，只能做拷贝）的陷阱中。
+   
+   ```go
+   // const_string_test.go
+   
+   package testconststring
+   
+   import {
+       "reflect"
+       "testing"
+   }
+   
+   // [edit] the data underground
+       // through a pointer
+       // if you could
+   
+   func TestConstString(t *testing.T) {
+       s := "hello" // immutable
+       bs := []byte{'h', 'e', 'l', 'l', 'o'} // mutable
+   
+       // s[:][1] = 'E'
+       bs[1] = 'E'
+       t.Log(s[1:], string(bs)[1:])
+   
+       var str string
+       hds := (*reflect.StringHeader)(unsafe.Pointer(&str))
+       hds.Data = uintptr((*reflect.StringHeader)(unsafe.Pointer(&s)).Data) // s
+       hds.Len = len(s)
+       // *(*byte)(unsafe.Pointer(hds.Data + 1)) = 'E'
+       hds.Data = uintptr((*reflect.SliceHeader)(unsafe.Pointer(&bs)).Data) // bs
+       *(*byte)(unsafe.Pointer(hds.Data + 1)) = 'e'
+       t.Log(string(bs)[1:], str[1:])
+   }
+   
+   func innerTestArray(a [3]int) {
+       a[0] = 8
+   }
+   func TestArray(t *testing.T) {
+       a := [...]int {1,2,3}
+       innerTestArray(a)
+       t.Log(a[0])
+   }
+   ```
+   
+   ```cpp
+   // test_const_char.cpp
+   
+   #include <iostream>
+   #include <string>
+   
+   void pointer_to_another_literal(const char *&s) { s = "1"; }
+   // void pointer_locally_to_another_literal(const char *s) { s = "2"; }  // no use
+   
+   void edit_the_array(char *s) { *s = '3'; }
+   void edit_the_array_or_re_point(const char *&s, bool edit = false) {
+       if (edit) {
+           *const_cast<char *>(s) = '4';
+       } else {
+           s = "5";
+       }
+   }
+   void mod_std_string(std::string &str) { str[0] = '6'; }
+   void mod_std_string(const std::string &str) { const_cast<std::string &>(str) = "7"; }
+   
+   int main() {
+       auto s = "0";  // pointer to a string literal(immutable) "0"
+       pointer_to_another_literal(s);
+       std::cout << s << std::endl;
+   
+       // [edit] if you can, or you may just be able to re-point
+   
+       const char a[2] = {0};  // (mutable)array
+       const char *const &p = a;
+       // edit_the_array(const_cast<char *>(a));
+       edit_the_array(const_cast<char *>(p));
+       std::cout << a << std::endl;
+   
+       // edit the array
+       edit_the_array_or_re_point(const_cast<const char *&>(p), true);
+       std::cout << a << ", " << p << std::endl;
+       // re-point to a string literal
+       edit_the_array_or_re_point(const_cast<const char *&>(p));
+       std::cout << a << ", " << p << std::endl;
+       // now you could not edit the data underground anymore
+       // edit_the_array_or_re_point(const_cast<const char *&>(p), true);
+   
+       const std::string str("0");  // string(array) is mutable
+       mod_std_string(const_cast<std::string &>(str));
+       std::cout << str << std::endl;
+       mod_std_string(str);
+       std::cout << str << std::endl;
+   }
+   ```
 
-    1. 与字符串字面值位于常量区，或者局部的数组分配在栈上不同的是，字符串`std::string`本质上其实是一个`char`类型的`std::vector`，它的数据分配在堆栈上，且基于动态数组的字符串类是可修改的。
-    2. 对比之下，Go 同样基于动态数组的字符串类本质上也是可编辑的，只不过该类并没有提供 **修改接口**，所以才说它不可变的。但我们仍然可以通过`unsafe`（我是不可变的，你非要修改，我也是有办法的，但我提醒你这是危险的）库直接操作底层数据，只不过有时候这种强行重新解释数据类型的操作很可能在将错误掩盖并延后到运行时，因为可能持有的字符串字面值依然是存放在不可修改的常量区的。P.S. 强类型的 Go ，其强制类型转换依赖于“中介”`unsafe.Pointer`，还需要地址计算的话就再加一个“中介”`uintptr`。
-    3. Go与C++在字符串可变性设计上的区别 —— C++ `std::string`对其构造和赋值函数的定义是对入参做 **逐字符拷贝**，这里的入参包括任何有意义的字符序列，比如说，C风格的字符串指针，即，以`\n`结尾的字符指针，也包括字符串字面值（也是C风格的字符数组，只是分配在常量区），以及，其他字符串对象（拷贝构造、赋值）。因为C++标准库对字符串做了这种自定义，所以，使用C++的字符串做函数参数时常常伴随着引用绑定，而Go往往直接传字符串而不必通过指针来传递（类似切片结构体的值传递，而且它又没提供修改接口，所以直接值拷贝就可以了，毕竟，拷贝一两个表示长度的整型不算事儿）。
+###### 函数指针、可调用对象、函数式
 
-    ```go
-    // const_string_test.go
-    
-    package testconststring
-    
-    import {
-    	"reflect"
-    	"testing"
-    }
-    
-    // [edit] the data underground
-    	// through a pointer
-    	// if you could
-    
-    func TestConstString(t *testing.T) {
-    	s := "hello" // immutable
-    	bs := []byte{'h', 'e', 'l', 'l', 'o'} // mutable
-    
-    	// s[:][1] = 'E'
-    	bs[1] = 'E'
-    	t.Log(s[1:], string(bs)[1:])
-    
-    	var str string
-    	hds := (*reflect.StringHeader)(unsafe.Pointer(&str))
-    	hds.Data = uintptr((*reflect.StringHeader)(unsafe.Pointer(&s)).Data) // s
-    	hds.Len = len(s)
-    	// *(*byte)(unsafe.Pointer(hds.Data + 1)) = 'E'
-    	hds.Data = uintptr((*reflect.SliceHeader)(unsafe.Pointer(&bs)).Data) // bs
-    	*(*byte)(unsafe.Pointer(hds.Data + 1)) = 'e'
-    	t.Log(string(bs)[1:], str[1:])
-    }
-    
-    func innerTestArray(a [3]int) {
-    	a[0] = 8
-    }
-    func TestArray(t *testing.T) {
-    	a := [...]int {1,2,3}
-    	innerTestArray(a)
-    	t.Log(a[0])
-    }
-    ```
+新式的编程语言往往生来就支持很多有趣的特性，而一些老的语言可能需要一些特别的设计才能达到想要的效果，但总的来说，像泛型、函数式编程、流、模块等机制或标准库，即便在Java或者Go中也是在语言发展过程中逐渐引入的。
 
-    ```cpp
-    // test_const_char.cpp
-    
-    #include <iostream>
-    #include <string>
-    
-    void pointer_to_another_literal(const char *&s) { s = "1"; }
-    // void pointer_locally_to_another_literal(const char *s) { s = "2"; }  // no use
-    
-    void edit_the_array(char *s) { *s = '3'; }
-    void edit_the_array_or_re_point(const char *&s, bool edit = false) {
-        if (edit) {
-            *const_cast<char *>(s) = '4';
-        } else {
-            s = "5";
-        }
-    }
-    void mod_std_string(std::string &str) { str[0] = '6'; }
-    void mod_std_string(const std::string &str) { const_cast<std::string &>(str) = "7"; }
-    
-    int main() {
-        auto s = "0";  // pointer to a string literal(immutable) "0"
-        pointer_to_another_literal(s);
-        std::cout << s << std::endl;
-    
-        // [edit] if you can, or you may just be able to re-point
-    
-        const char a[2] = {0};  // (mutable)array
-        const char *const &p = a;
-        // edit_the_array(const_cast<char *>(a));
-        edit_the_array(const_cast<char *>(p));
-        std::cout << a << std::endl;
-    
-        // edit the array
-        edit_the_array_or_re_point(const_cast<const char *&>(p), true);
-        std::cout << a << ", " << p << std::endl;
-        // re-point to a string literal
-        edit_the_array_or_re_point(const_cast<const char *&>(p));
-        std::cout << a << ", " << p << std::endl;
-        // now you could not edit the data underground anymore
-        // edit_the_array_or_re_point(const_cast<const char *&>(p), true);
-    
-        const std::string str("0");  // string(array) is mutable
-        mod_std_string(const_cast<std::string &>(str));
-        std::cout << str << std::endl;
-        mod_std_string(str);
-        std::cout << str << std::endl;
-    }
-    ```
-
-###### 函数式、闭包、捕获、可调用对象
-
-新式的编程语言往往生来就支持很多有趣的特性，而一些老的语言可能需要一些特别的设计才能达到想要的效果，比如，Java的泛型、函数式编程、流、模块等机制就是在语言发展过程中逐渐引入的。此处，再以Go为例，来对比研究C++在函数式编程上的机制与特点。
-
-1. 函数指针类型的声明 —— C++函数的型别（函数签名）由函数名及其参数决定，而C和Go（它认为虽然有时候有用，但复杂性让重载这一机制得不偿失）都不支持重载。如果不是有`typedef`这样的别名机制的话，C那些混杂了指针、数组与函数指针的复杂声明就是很难阅读的，部分原因是C的函数符号`()`、指针符号`*`与数组符号`[]`的优先级与结合性设计得并不合理，而阅读复杂声明的技巧也就同样就是要把握住运算符之间的优先级。尤其是，指针符号`*`是一个前缀运算符，其优先级低于函数符号`()`，这也就是 **函数指针的声明** 中加额外括号的原因；否则，名字是先与指针符号结合的。比如，在读`char(*(*x[3])())[5]`这样的声明时，额外括号即表明为函数指针类型；所以，`x`就被声明为"array[3] of pointer to function returning pointer to array[5] of char"。而Go类型声明的顺序中，数组和指针是位于实际类型前面的，而且Go有`func`关键字，上面的例子在Go中会是`var x [3]func() *[5]byte`，不需要加一个额外的括号。而 Go 另一个函数声明的有用设计是尾置返回类型：类的作用域与函数的块作用域，是从类名与函数名开始的，对于想利用在类的作用域中可以省略模板类型参数这样的机制，或者想使用基于函数参数类型的推导来定义返回值类型的情况来说，C++ 11引入的 **尾置返回类型** 就很有用了；而Go本身就是尾置返回类型的。
-
-    ```go
-    // go test -v -run TestPointertofunc pointer_to_func_test.go
-    
-    package testpointertofunc
-    
-    import "testing"
-    
-    func pointertofunc() *[5]byte {
-    	var ans *[5]byte = &[5]byte{}
-    	ans[3] = '3'
-    	return ans
-    }
-    
-    func TestPointertofunc(t *testing.T) {
-        var x [3]func() *[5]byte
-    	x[2] = pointertofunc
-    	t.Log(x[2]())
-    }
-    ```
+1. 函数指针类型的声明 —— C++函数的型别（函数签名）由函数名及其参数决定，而C和Go（它认为虽然有时候有用，但复杂性让重载这一机制得不偿失）都不支持重载。如果不是有`typedef`这样的别名机制的话，C那些混杂了指针、数组与函数指针的复杂声明就是很难阅读的，部分原因是C的函数符号`()`、指针符号`*`与数组符号`[]`的优先级与结合性设计得并不合理，而阅读复杂声明的技巧也就同样就是要把握住运算符之间的优先级。尤其是，指针符号`*`是一个前缀运算符，其优先级低于函数符号`()`，这也就是 **函数指针的声明** 中加额外括号的原因；否则，名字是先与指针符号结合的。比如，在读`char(*(*x[3])())[5]`这样的声明时，额外括号即表明为函数指针类型；所以，`x`就被声明为"array[3] of pointer to function returning pointer to array[5] of char"。而Go类型声明的顺序中，数组和指针是位于实际类型前面的，而且Go有`func`关键字，上面的例子在Go中会是`var x [3]func() *[5]byte`，不需要加一个额外的括号。而 Go 另一个函数声明的有用设计是尾置返回类型：类的作用域与函数的块作用域，是从类名与函数名开始的，对于想利用在类的作用域中可以省略模板类型参数这样的机制，或者想使用基于函数参数类型的推导来定义返回值类型的情况来说，现代C++引入的 **尾置返回类型** 就很有用了；而Go本身就是尾置返回类型的。
+   
+   ```go
+   // go test -v -run TestPointertofunc pointer_to_func_test.go
+   
+   package testpointertofunc
+   
+   import "testing"
+   
+   func pointertofunc() *[5]byte {
+       var ans *[5]byte = &[5]byte{}
+       ans[3] = '3'
+       return ans
+   }
+   
+   func TestPointertofunc(t *testing.T) {
+       var x [3]func() *[5]byte
+       x[2] = pointertofunc
+       t.Log(x[2]())
+   }
+   ```
 
 2. Go 函数字面值与闭包、捕获 —— 闭包是指函数与参数的绑定，而捕获看上去似乎是在直接引用外围作用域中的对象。Go的实现其实是基于局部变量可以依据需要 **逃逸** 到堆上这个机制的（而C++ 局部对象的作用域和生命周期绑定的。P.S. 另一个你无法获知一个变量具体地址的原因是Go的函数栈也是基于动态数组的，这样就不会有栈溢出的问题了；也因此，一个持久化的地址值可能是无意义的），C++ 则基于类的构造提供了引用与值传递两种捕获方式。这里引用Go语言规格中对[`defer`](https://go.dev/ref/spec#Defer_statements)和函数字面值（类似函数指针）的说明，以更深入地理解古老的函数这一概念：`defer`语句中被声明执行的函数，其实先是被作为函数字面量连带着参数被计算并保存在`_defer`栈中的，而函数体内非局部的变量可以依据函数被执行（在`defer`场景下是在函数返回时）的位置被逃逸到堆上。P.S. deferred 函数以入`_defer`栈相反的顺序执行时不会被个别函数报错打断，错误栈信息打印在所有函数执行完之后；毕竟，Go的异常处理其实就是返回一个`string`，就像C返回一个整型`-1`一样。
-
-    > Each time a "defer" statement executes, **the function value and parameters to the call** are evaluated as usual and saved anew but the actual function is not invoked. Instead, deferred functions are invoked immediately **before the surrounding function returns**, in the reverse order they were deferred. That is, if the surrounding function returns through an explicit return statement, deferred functions are executed *after* any result parameters are set by that return statement but *before* the function returns to its caller. If a deferred function value evaluates to nil, execution panics when the function is invoked, not when the "defer" statement is executed.
-    >
-    > Function literals are *closures*: they may refer to **variables defined in a surrounding function**. Those variables are then shared between the surrounding function and the function literal, and they survive as long as they are accessible.
-
-    ```go
-    // [see] what's deferred execution
-    
-    func innerTestDefer() int {
-    	var fs [4]func()
-    	defer fmt.Println("first defer")
-    	for i := 0; i < 3; i++ {
-    		defer fmt.Println("defer fmt.Println(i)", i, &i)  // escaped referenced i
-    		defer func(i int) {
-    			fmt.Println("defer func(i) { fmt.Println(i) }(i)", i, &i)
-    		}(i)  // local i, calculated already
-    
-    		fs[i] = func() {
-    			fmt.Println("func() { fmt.Println(i) }()", i, &i)
-    		}
-    		// fs[i]()
-    	}
-    
-    	var p uintptr
-    	p = 0xc000014300
-    	ip := (*int)(unsafe.Pointer(p))
-    	*ip = 42
-    
-    	for i := 0; i < 3; i++ {
-    		fs[i]()
-    	}
-    	defer fs[3]()  // nullptr panic
-    	defer fmt.Println("last defer")
-    	return func() int {
-    		fmt.Println("innerTestDefer() return")
-    		return 8
-    	}()
-    }
-    func TestDefer(t *testing.T) {
-    	fmt.Println("innerTestDefer() returned: ", innerTestDefer())
-    }
-    
-    /* output
-    === RUN   TestDefer
-    func() { fmt.Println(i) }() 3 0xc0001182d0
-    func() { fmt.Println(i) }() 3 0xc0001182d0
-    func() { fmt.Println(i) }() 3 0xc0001182d0
-    innerTestDefer() return
-    last defer
-    defer func(i) { fmt.Println(i) }(i) 2 0xc0001182d8
-    defer fmt.Println(i) 2 0xc0001182d0
-    defer func(i) { fmt.Println(i) }(i) 1 0xc0001182e0
-    defer fmt.Println(i) 1 0xc0001182d0
-    defer func(i) { fmt.Println(i) }(i) 0 0xc0001182e8
-    defer fmt.Println(i) 0 0xc0001182d0
-    first defer
-    --- FAIL: TestDefer (0.00s)
-    panic: runtime error: invalid memory address or nil pointer dereference [recovered]
-    */
-    ```
+   
+   > Each time a "defer" statement executes, **the function value and parameters to the call** are evaluated as usual and saved anew but the actual function is not invoked. Instead, deferred functions are invoked immediately **before the surrounding function returns**, in the reverse order they were deferred. That is, if the surrounding function returns through an explicit return statement, deferred functions are executed *after* any result parameters are set by that return statement but *before* the function returns to its caller. If a deferred function value evaluates to nil, execution panics when the function is invoked, not when the "defer" statement is executed.
+   > 
+   > Function literals are *closures*: they may refer to **variables defined in a surrounding function**. Those variables are then shared between the surrounding function and the function literal, and they survive as long as they are accessible.
+   
+   ```go
+   // [see] what's deferred execution
+   
+   func innerTestDefer() int {
+       var fs [4]func()
+       defer fmt.Println("first defer")
+       for i := 0; i < 3; i++ {
+           defer fmt.Println("defer fmt.Println(i)", i, &i)  // escaped referenced i
+           defer func(i int) {
+               fmt.Println("defer func(i) { fmt.Println(i) }(i)", i, &i)
+           }(i)  // local i, calculated already
+   
+           fs[i] = func() {
+               fmt.Println("func() { fmt.Println(i) }()", i, &i)
+           }
+           // fs[i]()
+       }
+   
+       var p uintptr
+       p = 0xc000014300
+       ip := (*int)(unsafe.Pointer(p))
+       *ip = 42
+   
+       for i := 0; i < 3; i++ {
+           fs[i]()
+       }
+       defer fs[3]()  // nullptr panic
+       defer fmt.Println("last defer")
+       return func() int {
+           fmt.Println("innerTestDefer() return")
+           return 8
+       }()
+   }
+   func TestDefer(t *testing.T) {
+       fmt.Println("innerTestDefer() returned: ", innerTestDefer())
+   }
+   
+   /* output
+   === RUN   TestDefer
+   func() { fmt.Println(i) }() 3 0xc0001182d0
+   func() { fmt.Println(i) }() 3 0xc0001182d0
+   func() { fmt.Println(i) }() 3 0xc0001182d0
+   innerTestDefer() return
+   last defer
+   defer func(i) { fmt.Println(i) }(i) 2 0xc0001182d8
+   defer fmt.Println(i) 2 0xc0001182d0
+   defer func(i) { fmt.Println(i) }(i) 1 0xc0001182e0
+   defer fmt.Println(i) 1 0xc0001182d0
+   defer func(i) { fmt.Println(i) }(i) 0 0xc0001182e8
+   defer fmt.Println(i) 0 0xc0001182d0
+   first defer
+   --- FAIL: TestDefer (0.00s)
+   panic: runtime error: invalid memory address or nil pointer dereference [recovered]
+   */
+   ```
 
 3. `operator()` —— 定义了调用操作`operator()`的类对象就是函数对象（functor）。
+   
+   ```cpp
+   #include <algorithm>
+   #include <iostream>
+   #include <vector>
+   
+   /* functor */
+   
+   using namespace std;
+   class ShortThan {
+       const size_t len;
+   
+      public:
+       explicit ShortThan(size_t l) : len(l) {}
+       bool operator()(const string &str) { return str.length() < len; }
+   };
+   int main() {
+       vector<string> strs{"apple", "banana", "pear"};
+       cout << count_if(strs.begin(), strs.end(), ShortThan(5)) << endl;
+   }
+   ```
 
-    ```cpp
-    #include <algorithm>
-    #include <iostream>
-    #include <vector>
-    
-    /* functor */
-    
-    using namespace std;
-    class ShortThan {
-        const size_t len;
-    
-       public:
-        explicit ShortThan(size_t l) : len(l) {}
-        bool operator()(const string &str) { return str.length() < len; }
-    };
-    int main() {
-        vector<string> strs{"apple", "banana", "pear"};
-        cout << count_if(strs.begin(), strs.end(), ShortThan(5)) << endl;
-    }
-    ```
-
-4. 可调用对象 —— lambda 表达式是一种 **局部临时定义** 的匿名的functor类，在每一处出现lambda表达式的作用域中都有一个它的定义；因此，对于有重复调用价值的操作，最好还是定义一个函数，而非这样的局部类。P.S. 可调用对象又叫谓词，对它的调用也叫做断言。例如，在1小于2的断言中，小于是一个二元谓词。
-
-    ```cpp
-    // lambda_functor.h
-    
-    template <typename T>
-    void foo(T f) {}
-    
-    struct Foo {
-        void operator()(bool x) {}
-    };
-    struct Bar {
-        void operator()(bool x) {}
-    };
-    
-    void f1(bool x) {}
-    void f2(bool x) {}
-    
-    int main() {
-        foo(Foo());    foo(Bar());    foo(Bar());
-        foo(f1);    foo(f2);
-        foo([](bool x) {});
-        foo([](bool x) {});
-    }
-    
-    // $ g++ -c hello.cpp
-    // $ nm -C hello.o | grep "void foo"
-    
-    // 0000000000000000 T void foo<Bar>(Bar)
-    // 0000000000000000 T void foo<Foo>(Foo)
-    // 0000000000000000 T void foo<void (*)(bool)>(void (*)(bool))
-    // 0000000000000080 t void foo<main::{lambda(bool)#1}>(main::{lambda(bool)#1})
-    // 000000000000008a t void foo<main::{lambda(bool)#2}>(main::{lambda(bool)#2})
-    ```
-
-    1. lambda表达式与捕获 —— lambda 表达式可以捕获外部变量，而捕获的本质就是在这个匿名类对象构造过程中初始化类对象的成员数据。捕获可以分为值捕获与引用捕获（比如，标准输入对象不支持拷贝，只能被作为引用捕获），或分为显式与隐式捕获（被捕获的外部变量可以不列出来，由编译器代为在外围作用域中查找）。与子类通过`using`声明对继承的对象进行访问控制类似地，设置默认引用捕获时，显式声明不加引用符号`[&, ci]`以表示值捕获；默认值捕获的时候，显式捕获加引用符号`[=, &os]`以表示引用捕获，默认与单独对象的设置用逗号分隔开。引用捕获时，lambda 表达式中可以通过这个引用修改原来的入参。值捕获时，参数被默认地拷贝作为一个常量成员，所以，如果想在函数体内改动值需要加一个`mutable`声明，类似`mutable`声明之于`const`成员限定。
-
-    2. `bind`与`placeholder` —— 有时候，我们想或者需要重新包装一个函数（为它指定某些默认的参数，或调整参数顺序），就可以用到它们。
-
-    3. `functional`的`function`类是可调用对象的代名词，它可以指向普通的函数指针，或lambda表达式，也可以通过在模板参数中声明自己是一个接受一个对象指针的函数指针以指向一个类成员函数指针。函数式标准库中还有像`plus`、`less`（泛型算法库中的许多涉及元素之间比较的接口都是以`less`为一个默认模板参数的，它要求元素类型对`<`的实现）、`greater`这样的范型可调用类，在简化代码时可使用这些语言特性和标准库。
-
-        ```cpp
-        int first[] = {1, 2, 3};
-        int second[] = {3, 2, 1};
-        auto firstEnd = first + *(&first + 1) - first;
-        auto binaryOp = std::plus<int>;
-        int result[firstEnd - first];
-        std::transform(first, firstEnd, second, result, binaryOp);  // transform in <algorithm>
-        ```
+4. 可调用对象 —— lambda 表达式是一种 **局部临时定义** 的匿名的functor类，在每一处出现lambda表达式的作用域中都有一个它的定义。因此，对于有重复调用价值的操作，可以定义一个函数，而非这样的局部类。P.S. 可调用对象又叫谓词，对它的调用也叫做断言。例如，在1小于2的断言中，小于是一个二元谓词。Java的实现则依托于对单一非默认方法的接口的实现，而这些不同语言实现lambda表达式的方式在本质上都有点儿像一个内部（或局部、嵌套）类，这使得该临时对象的类型被限定在所属作用域（命名空间）中，这也是每一个作用域都会定义一个lambda类的原因，因为它是匿名的、局部定义的类型。
+   
+   ```cpp
+   // lambda_functor.h
+   
+   template <typename T>
+   void foo(T f) {}
+   
+   struct Foo {
+       void operator()(bool x) {}
+   };
+   struct Bar {
+       void operator()(bool x) {}
+   };
+   
+   void f1(bool x) {}
+   void f2(bool x) {}
+   
+   int main() {
+       foo(Foo());    foo(Bar());    foo(Bar());
+       foo(f1);    foo(f2);
+       foo([](bool x) {});
+       foo([](bool x) {});
+   }
+   
+   // $ g++ -c hello.cpp
+   // $ nm -C hello.o | grep "void foo"
+   
+   // 0000000000000000 T void foo<Bar>(Bar)
+   // 0000000000000000 T void foo<Foo>(Foo)
+   // 0000000000000000 T void foo<void (*)(bool)>(void (*)(bool))
+   // 0000000000000080 t void foo<main::{lambda(bool)#1}>(main::{lambda(bool)#1})
+   // 000000000000008a t void foo<main::{lambda(bool)#2}>(main::{lambda(bool)#2})
+   ```
+   
+   1. lambda表达式与捕获 —— lambda 表达式可以捕获外部变量，而捕获的本质就是在这个匿名类对象构造过程中初始化类对象的成员数据。捕获可以分为值捕获与引用捕获（比如，标准输入对象不支持拷贝，只能被作为引用捕获），或分为显式与隐式捕获（被捕获的外部变量可以不列出来，由编译器代为在外围作用域中查找）。与子类通过`using`声明对继承的对象进行访问控制类似地，设置默认引用捕获时，显式声明不加引用符号`[&, ci]`以表示值捕获；默认值捕获的时候，显式捕获加引用符号`[=, &os]`以表示引用捕获，默认与单独对象的设置用逗号分隔开。引用捕获时，lambda 表达式中可以通过这个引用修改原来的入参。值捕获时，参数被默认地拷贝作为一个常量成员，所以，如果想在函数体内改动值需要加一个`mutable`声明，类似`mutable`声明之于`const`成员限定。
+   
+   2. `bind`与`placeholder` —— 有时候，我们想或者需要重新包装一个函数（为它指定某些默认的参数，或调整参数顺序），就可以用到它们。
+   
+   3. `functional`的`function`类是可调用对象的代名词，它可以指向普通的函数指针，或lambda表达式，也可以通过在模板参数中声明自己是一个接受一个对象指针的函数指针以指向一个类成员函数指针。函数式标准库中还有像`plus`、`less`（泛型算法库中的许多涉及元素之间比较的接口都是以`less`为一个默认模板参数的，它要求元素类型对`<`的实现）、`greater`这样的范型可调用类，在简化代码时可使用这些语言特性和标准库。
+      
+      ```cpp
+      int first[] = {1, 2, 3};
+      int second[] = {3, 2, 1};
+      auto firstEnd = first + *(&first + 1) - first;
+      auto binaryOp = std::plus<int>;
+      int result[firstEnd - first];
+      std::transform(first, firstEnd, second, result, binaryOp);  // transform in <algorithm>
+      ```
 
 ###### 编译期、模板实例化、别名、RTTI
 
 1. 编译期
-
-    1. 就像在每一个调用点展开`inline`一样，常量表达式`constexpr`（对指针类型进行的是顶层常量限定，语法示例：`constexpr const Type *p`）也是一种在编译期就要明确的字面值。另外，`enum`（它和`union`都是特殊的结构体、类，而C++在C中两种`enum`之外新增了一种具有命名空间的`enum`）对象也是常量表达式。
-    2. 编译期，除了要算出常量以外，很重要的一个部分是明确类型（而有的，比如数组类型和模板中的带非类型参数，以常量为其类型定义的一部分；而模板类不称其为类型，实例化之后才是）和符号（全局变量和函数。可以说，**符号** 是一些属于某个类型的全局的对象，比如说，不同函数或方法可能属于同一个函数类型）。
-    3. 习惯上，C/C++ 被看作是一种 静态（要求在编译期就明确类型，依赖虚函数的动态绑定和父类转子类`reinterpret_cast`等机制部分地减弱了它，就像golang也会依赖`interface`来提供的运行时类型的灵活性一样。但就像切片一样，数据结构所占空间的大小是固定的，只是成员包括一个指向可能发生变化的内存块的指针而已。而汇编语言直接按字节来操作内存因而被看作是无类型的）、弱类型（偏向于容忍隐式转换，C++经常通过非`explict`的构造函数达到目的；Go 是强类型的，只能显式地通过`unsafe.Pointer`实现类型转换）语言。类的大小是固定的（泛型类也能在编译期间就将模板参数确定下来；像`string`和`vector`这样的可变容器类的大小也是固定的，只不过其所持有的可变数据段是动态分配的），这就是`sizeof(Type or object)`、`sizeof object`能获取类型（对象）大小的缘由。`sizeof`返回的类型是一个`unsigned`整型的别名`size_t`，其长度决定于具体机器（为了节省内存的机器）；类似这样直接继承自最早版本的C的 **不可移植的特性** 还有位域（字段排序可能会不一致）和`volatile`（不做暂时从寄存器取用的优化）。
+   
+   1. 就像在每一个调用点展开`inline`一样，常量表达式`constexpr`（对指针类型进行的是顶层常量限定，语法示例：`constexpr const Type *p`）也是一种在编译期就要明确的字面值。另外，`enum`（它和`union`都是特殊的结构体、类，而C++在C中两种`enum`之外新增了一种具有命名空间的`enum`）对象也是常量表达式。
+   2. 编译期，除了要算出常量以外，很重要的一个部分是明确类型（而有的，比如数组类型和模板中的带非类型参数，以常量为其类型定义的一部分；而模板类不称其为类型，实例化之后才是）和符号（全局变量和函数。可以说，**符号** 是一些属于某个类型的全局的对象。比如说，不同函数或方法可能属于同一个函数类型）。
 
 2. 编译期要实例化模板，要求：
-
-    1. 类模板需要显式给出类型参数，非类型模板参数则必须提供常量表达式。模板函数的类型参数则可以通过调用点的实参推断出来的，而函数的返回值模板类型可能需要指定，部分情况下可能需要尾置返回类型，以利用实参类型来声明返回类型；因为，前置返回类型不属于模板定义的作用域内。
-    2. 非显式实例化只有使用了才会实例化的特点，导致不能仅凭借类模板定义中的方法声明就通过编译：需要实例化被调函数，就需要给出函数定义，因此，方法定义与类模板定义需要放在同一头文件中。默认的实例化是`static`到源文件的，显式实例化和`extern`声明，可以让所有方法指向同一个实例化；同时，可多处声明，但只能在定义一次。P.S. 我们可以显式实例化某个特定类型参数的类的方法，相当于重定义了这个方法。
-    3. 模板友元声明前需要有友元模板的声明：编译器需要检查友元的模板是否可实例化，因此，声明也有实例化要求；除非是对模板友元的任何实例化版本都声明友好性，但依然，需要以一个与类模板本身不同的模板参数标记出来，以表示它支持友元任何类型的实例化。
+   
+   1. 类模板需要显式给出类型参数，非类型模板参数则必须提供常量表达式。模板函数的类型参数则可以通过调用点的实参推断出来的，而函数的返回值模板类型可能需要指定，部分情况下可能需要尾置返回类型，以利用实参类型来声明返回类型；因为，前置返回类型不属于模板定义的作用域内。
+   2. 非显式实例化只有使用了才会实例化的特点，导致不能仅凭借类模板定义中的方法声明就通过编译：需要实例化被调函数，就需要给出函数定义，因此，方法定义与类模板定义需要放在同一头文件中。默认的实例化是`static`到源文件的，显式实例化和`extern`声明，可以让所有方法指向同一个实例化；同时，可多处声明，但只能在定义一次。P.S. 我们可以显式实例化某个特定类型参数的类的方法，相当于重定义了这个方法。C++采用了这种使用了才会实例化以及显式实例化的特性来减少生成代码的规模，这都是因为它不像Java有一个所有对象的终极父类`Object`，通过类型擦除到泛型参数的绑定类型（以及一些用于变量声明的通配符）后，只需生成一份代码，而代价就是内置类型需要装箱拆箱，并且需要生成一些桥接方法，这些都是编译器代为生成的代码。
+   3. 模板友元声明前需要有友元模板的声明：编译器需要检查友元的模板是否可实例化，因此，声明也有实例化要求；除非是对模板友元的任何实例化版本都声明友好性，但依然，需要以一个与类模板本身不同的模板参数标记出来，以表示它支持友元任何类型的实例化。
 
 3. 实现可变参数的方式
-
-    1. 可变参数模板类似`std:initializer_list<T>`，二者都是在编译期就已经确定了类或函数的模板类型。可变参数模板支持多种参数类型自动的打包、解包（通过`...`，包括通过`sizeof...(T or t)`获取可变参数长度），而初始器列表限定了一种类型参数，本质上，都是编译期代为实例化了不同类型的参数或者同一类型的一个列表。
-    2. 实现可变长参数列表的另一种实现与这些模板的方式不同，就是继承自C的 **`va_list`**，其原理是：函数从右往左的参数是从依次压入栈中的，从高地址到低地址，因此，可以通过从最低地址的可变长参数列表的位置（最后一个非可变长参数后面那个参数，通过``va_start(last_not_va_last)`获取）往回加地址来获取可变参数，但它依赖一个`fmt`参数来获取每一个可变参数的类型，C的`printf`与Go的`fmt.Printf`的实现就是这样的方式。
+   
+   1. 可变参数模板类似`std::initializer_list<T>`，二者都是在编译期就已经确定了类或函数的模板类型。可变参数模板支持多种参数类型自动的打包、解包（通过`...`，包括通过`sizeof...(T or t)`获取可变参数长度），而初始器列表限定了一种类型参数，本质上，都是编译期代为实例化了不同类型的参数或者同一类型的一个列表。
+   2. 实现可变长参数列表的另一种实现与这些模板的方式不同，就是继承自C的 **`va_list`**，其原理是：函数从右往左的参数是从依次压入栈中的，从高地址到低地址，因此，可以通过从最低地址的可变长参数列表的位置（最后一个非可变长参数后面那个参数，通过``va_start(last_not_va_last)`获取）往回加地址来获取可变参数，但它依赖一个`fmt`参数来获取每一个可变参数的类型，C的`printf`与Go的`fmt.Printf`的实现就是这样的方式。
 
 4. 别名、`auto`与`decltype`：一种编译器提供的型别推导机制。
-
-    1. `using `可代替 C 原生的`typedef`来给类型起别名，它支持模板，而`typedef`只能引用实例化过的类型；它与模板都有很大的灵活性，而模板类虽不是类型，但它至少是个 **名字**；再比如，直接定义引用的引用是非法的，但是`using`可以像模板参数的引用折叠那样将多次引用都“折叠”掉；而模板的灵活性还体现在模板实参推断的多样性上（与Java泛型限制的繁琐类似，C++ 定义模板及其中涉及到的声明也很繁琐，二者都在将困难的泛型编程留给库的编写者，但泛型库的使用者会轻松很多；而泛型编程的复杂性也是所有编程语言草创之初不回去实现的特性，包括Go）。
-    2. `auto`提供了同其他现代编程语言类似的在演化过程中渐渐引入的自动获取类型的能力，与`constexpr`相反，它会获取赋值符号右侧表达式的底层常量限定，而弃掉顶层常量限定。
-    3. `decltype(expr)`也是重要的名字声明机制，且与引用或者说“对象别名”（如果说`using`重命名了类型，那么引用可以看作给对象起别名，二者都事关名字）有着很“亲近”的关系：当`decltype(expr)`中的表达式是对指针类型的解引用，或者多包了一层括号，都将被编译器视作要声明引用类型；函数与函数指针（函数指针类型的形参，在被赋值时可以不带取地址符，在取函数指针来调用的时候可以不带解引用符）、数组和指针之间都有着很多自动转换机制，但`decltype`就取函数和数组类型本身（在做函数指针类型的声明时要搭配解引用符号，即`*decltype(func_name)`），而不会转成指针。
-
-    ```cpp
-    #include <iostream>
-    
-    /* auto decltype */
-    
-    void print(const int *a) { std::cout << a[0] << std::endl; } // same as `*a`
-    void printPtr(int *&a) { print(a); }
-    // ref to array, not `int &a[]`(array of refs) or `int (*f) `(func pointer, which returns an int)
-    void printArr(int (&a)[5]) {
-        auto p = a;
-        printPtr(p);
-    }
-    int main() {
-        int a[] = {1, 2, 3, 4, 5};
-        int *p = a;
-        // print(a);
-        printPtr(p);
-        printArr(a);
-    
-        auto b(a);  // int *
-        print(b + 1);
-    
-        decltype(a) c;  // (int)[5]
-        std::cout << sizeof c / sizeof(int) << std::endl;
-    }
-    ```
+   
+   1. `using `可代替 C 原生的`typedef`来给类型起别名，它支持模板，而`typedef`只能引用实例化过的类型；它与模板都有很大的灵活性，而模板类虽不是类型，但它至少是个 **名字**；再比如，直接定义引用的引用是非法的，但是`using`可以像模板参数的引用折叠那样将多次引用都“折叠”掉；而模板的灵活性还体现在模板实参推断的多样性上（与Java泛型限制的繁琐类似，C++ 定义模板及其中涉及到的声明也很繁琐，二者都在将困难的泛型编程留给库的编写者，但泛型库的使用者会轻松很多；而泛型编程的复杂性也是所有编程语言草创之初不回去实现的特性，包括Go）。
+   
+   2. `auto`提供了同其他现代编程语言类似的在演化过程中渐渐引入的自动获取类型的能力，与`constexpr`相反，它会获取赋值符号右侧表达式的底层常量限定，而弃掉顶层常量限定，这是因为`auto`的型别推导本质上就是一个模板型别推导，而`auto`就是那个类型参数`T`（EMCPP.2），不论是引用、万能引用、数组引用、函数指针等都与模板型别推导的结果是一致的。唯一的一个例外是，现代C++大括号语法的统一初始化在`auto`这里会被自动推导为初始化列表类型，同时，C++ 14版本的返回值自动推导类型特性也不支持大括号语法。
+   
+   3. `decltype(expr)`也是重要的名字声明机制，且与引用或者说“对象别名”（如果说`using`重命名了类型，那么引用可以看作给对象起别名，二者都事关名字）有着很“亲近”的关系：当`decltype(expr)`中的表达式是对指针类型的解引用，或者多包了一层括号，都将被编译器视作要声明引用类型；函数与函数指针（函数指针类型的形参，在被赋值时可以不带取地址符，在取函数指针来调用的时候可以不带解引用符）、数组和指针之间都有着很多自动转换机制，但`decltype`就取函数和数组类型本身（在做函数指针类型的声明时要搭配解引用符号，即`*decltype(func_name)`），而不会转成指针。
+      
+      ```cpp
+      #include <iostream>
+      
+      /* auto decltype */
+      
+      void print(const int *a) { std::cout << a[0] << std::endl; } // same as `*a`
+      void printPtr(int *&a) { print(a); }
+      // ref to array, not `int &a[]`(array of refs) or `int (*f) `(func pointer, which returns an int)
+      void printArr(int (&a)[5]) {
+       auto p = a;
+       printPtr(p);
+      }
+      int main() {
+       int a[] = {1, 2, 3, 4, 5};
+       int *p = a;
+       // print(a);
+       printPtr(p);
+       printArr(a);
+      
+       auto b(a);  // int *
+       print(b + 1);
+      
+       decltype(a) c;  // (int)[5]
+       std::cout << sizeof c / sizeof(int) << std::endl;
+      }
+      ```
 
 5. RTTI：运行时类型标识
-
-    就像Java语言中对象的`getClass`接口一样，C++有一个类似的`typeid`接口用于返回一个常量的`typeinfo`类型。同时，就像Java中通过`Class`对象比较、或者`instanceof`来实现`equals`接口，C++通过`typeid`、以及`reinterpret_cast`接口（两个重载版本在失败时分别抛出`bad_cast`或返回`null`）来实现它的比较操作。特别地，C++的运行时类型识别只有在类拥有至少一个`virtual`方法时才会真正发挥作用（具有多态性）。也同样类似Java那样，`typeinfo`对象有一个`name`接口，返回一个可能略显奇怪的类名（就像Java数组名的反射也很特别）。
-
-    ```cpp
-    #include <iostream>
-    
-    class T {
-        virtual void one(){};
-    };
-    class TT : public T {};
-    int main() {
-        const T &t = TT();
-        const auto &type = typeid(t);
-        std::cout << std::boolalpha << (typeid(t) == typeid(TT)) << std::endl;
-        std::cout << type.name() << std::endl;
-    }
-    
-    // true
-    // 2TT
-    ```
+   
+    就像Java语言中对象的`getClass`接口一样，C++有一个类似的`typeid`接口用于返回一个常量的`typeinfo`类型。同时，就像Java中通过`Class`对象比较、或者`instanceof`来实现`equals`接口，C++通过`typeid`、以及`reinterpret_cast`接口（两个重载版本在失败时分别抛出`bad_cast`或返回`null`）来实现它的比较操作。特别地，C++的运行时类型识别只有在类拥有至少一个`virtual`方法时才会真正发挥作用（具有多态性）。也同样类似Java那样，`typeinfo`对象有一个`name`接口，返回一个可能略显奇怪的类名（就像Java数组名的反射也很特别；这里的数字表示类名长度）。但是，Java的反射显然是更为强大的，C++的类方法指针等能力只能部分解决对反射的需求。
+   
+   ```cpp
+   #include <iostream>
+   
+   class T {
+       virtual void one(){};
+   };
+   class TT : public T {};
+   int main() {
+       const T &t = TT();
+       const auto &type = typeid(t);
+       std::cout << std::boolalpha << (typeid(t) == typeid(TT)) << std::endl;
+       std::cout << type.name() << std::endl;
+   }
+   
+   // true
+   // 2TT
+   ```
 
 ###### 声明、内存分布、预处理
 
 1. 声明、分离式编译、内存分布
-
-    1. 一般来说，类定义（一般以类名命名并独占一个头文件）与函数声明放在头文件中，普通函数和类成员函数（类模板除外，要将方法定义也放在同一个头文件中）的定义放在源文件中；而定义所在的文件中也可引入其声明文件，以利用编译器检查声明和定义的一致性。以及为了避免预处理头文件引入的时候引入多次声明（或导致循环引用），C/C++支持头文件保护符`#ifndef`、`#define`和`#endif`，从而使变量和函数只被声明一次。在没有包、模块（Java 11 在package之上又引入了module概念；而 C++ 20 也已经引入了`import`、`export`等模块化管理机制了）等源码管理机制之前，C/C++ 只能将源文本`include`进来（未使用的，其实也不会编进来），或者将编译好的中间文件链接起来（又或者通过`make`、`cmake`等工具来组织引入与链接等行为）。如下所示，通过`include a.hpp`，`b.cpp`只是引入了`j`的 **声明** 就知足了。被调对象的定义可以通过链接加入进来的，而链接就是将这些 **未定义的名字** 重定位到一个对象定义上，这是典型的分离式编译。但是，没有了直接引入以后，`static`对象将无法被其他文件通过链接与`extern`（只声明而不定义）获取到，比如`i`被限制在了`a.cpp`中。`extern`的含义是只声明，但不论定义在哪，那么，如果有调用点却真的没有定义过的话，就会在链接期报错，比如，如果在`b.cpp`中用了`i`，那么就会因为获取不到`static`的`i`而报未定义错误。
-
-        ```cpp
-        /* 分离式编译 */
-        
-        // a.hpp
-        #ifndef AHPP
-        #define AHPP
-        
-        // you may use linker, like:
-        // g++ -c *pp
-        // g++ *.o -o main
-        
-        // but you cann't get the static `i` in a.cpp anyway, without:
-        // #include "a.cpp"
-        
-        extern int i;
-        extern int j;
-        extern int p;
-        extern int q;
-        
-        extern char *s;
-        
-        template <int T>
-        int echoTP() {
-            return T;
-        }
-        #endif
-        ```
-
-        ```cpp
-        // a.cpp
-        
-        // may conflicts between extern and static with:
-        // #include "a.hpp"
-        
-        static int i = 100;
-        int j = i;
-        
-        static int p = j;  // static same as `i`
-        int q = 101;
-        
-        auto s = "hello";
-        ```
-
-        ```shell
-        $ echo a.o b.o c.o main.* | xargs nm -nC | egrep "f[bc]| \w [ijpq]"
-        # capital letter for non-static(open), [b]ss i.e. block-start-by-symbol for un-[d]efined
-        0000000000000000 d i  // global static, [d]efined and initialized
-        0000000000000000 B j  // global non-static [B]ss, defined but not initialized
-        0000000000000004 b p  // global static [b]ss, defined but not initialized
-        0000000000000004 D q  // global non-static, [D]efined and initialized
-        ```
-
-        ```cpp
-        // b.cpp
-        #include "a.hpp"
-        
-        int fb() { return echoTP<'b'>(); }
-        ```
-
-        ```shell
-        0000000000000000 T fb()
-        0000000000000000 T int echoTP<98>()
-        ```
-
-        ```cpp
-        // c.cpp
-        #include <iostream>
-        
-        #include "a.hpp"
-        
-        // un-included `extern int fb()`
-        extern int fb();
-        int fc() { return echoTP<'c'>(); }
-        
-        int main() {
-            // if you want to use `i`, you have to offer an accessable definition
-            // std::cout << i << std::endl;
-            std::cout << j << std::endl;
-            // std::cout << p << std::endl;s
-            std::cout << q << std::endl;
-            std::cout << s << std::endl;
-        
-            return fb() + fc();
-        }
-        ```
-
-        ```shell
-                         U fb()  # undefined by `extern int fb()`
-                         U j     # undefined by `#include "a.hpp"`
-                         U q
-        0000000000000000 T fc()
-        0000000000000000 T int echoTP<99>()
-        ```
-
-        ```shell
-        # symbols in the final linked executable file
-        00000000004015b0 T fb()
-        00000000004015d0 T fc()
-        0000000000402dd0 T int echoTP<98>()
-        0000000000402de0 T int echoTP<99>()
-        0000000000403010 d i
-        0000000000403014 D q
-        0000000000407030 B j
-        0000000000407034 b p
-        ```
-
-    2. 是否静态限定到某一个文件或类中，与这个标识符是否是初始化有区别，这个区别类似常量限定与`register`类型限定、常量区的区别：前者只影响编译期对访问权限的校验，而是后者则影响变量被分配的 [内存布局](https://www.geeksforgeeks.org/memory-layout-of-c-program/) 区域（可以用`size obj.f`查看不同内存区域的分配情况），而未初始化的全局变量所在的BSS段的存在就是为了减小程序大小，只有在程序执行的时候才初始化为零值或计算得出，而已初始化的全局变量的初始值则可以看作是程序文本的一部分。PS. 函数的局部变量位于函数栈区，而动态内存分配在堆中。`new`和`delete`则是在类似C原生的`malloc`与`free`的用于动态堆内存分配与回收的`operator new`与`operator delete`之上，附加了类的构造和析构，以初始化类的对象、管理类所引用但位于类外的一般是操作系统管理的资源。
+   
+   1. 一般来说，类定义（一般以类名命名并独占一个头文件）与函数声明放在头文件中，普通函数和类成员函数（类模板除外，要将方法定义也放在同一个头文件中）的定义放在源文件中；而定义所在的文件中也可引入其声明文件，以利用编译器检查声明和定义的一致性。以及为了避免预处理头文件引入的时候引入多次声明（或导致循环引用），C/C++支持头文件保护符`#ifndef`、`#define`和`#endif`，从而使变量和函数只被声明一次。在没有包、模块（Java 11 在package之上又引入了module概念；而 C++ 20 也已经引入了`import`、`export`等模块化管理机制了）等源码管理机制之前，C/C++ 只能将源文本`include`进来（未使用的，其实也不会编进来），或者将编译好的中间文件链接起来（又或者通过`make`、`cmake`等工具来组织引入与链接等行为）。如下所示，通过`include a.hpp`，`b.cpp`只是引入了`j`的 **声明** 就知足了。被调对象的定义可以通过链接加入进来的，而链接就是将这些 **未定义的名字** 重定位到一个对象定义上，这是典型的分离式编译。但是，没有了直接引入以后，`static`对象将无法被其他文件通过链接与`extern`（只声明而不定义）获取到，比如`i`被限制在了`a.cpp`中。`extern`的含义是只声明，但不论定义在哪，那么，如果有调用点却真的没有定义过的话，就会在链接期报错，比如，如果在`b.cpp`中用了`i`，那么就会因为获取不到`static`的`i`而报未定义错误。
+      
+      ```cpp
+      /* 分离式编译 */
+      
+      // a.hpp
+      #ifndef AHPP
+      #define AHPP
+      
+      // you may use linker, like:
+      // g++ -c *pp
+      // g++ *.o -o main
+      
+      // but you cann't get the static `i` in a.cpp anyway, without:
+      // #include "a.cpp"
+      
+      extern int i;
+      extern int j;
+      extern int p;
+      extern int q;
+      
+      extern char *s;
+      
+      template <int T>
+      int echoTP() {
+          return T;
+      }
+      #endif
+      ```
+      
+      ```cpp
+      // a.cpp
+      
+      // may conflicts between extern and static with:
+      // #include "a.hpp"
+      
+      static int i = 100;
+      int j = i;
+      
+      static int p = j;  // static same as `i`
+      int q = 101;
+      
+      auto s = "hello";
+      ```
+      
+      ```shell
+      $ echo a.o b.o c.o main.* | xargs nm -nC | egrep "f[bc]| \w [ijpq]"
+      # capital letter for non-static(open), [b]ss i.e. block-start-by-symbol for un-[d]efined
+      0000000000000000 d i  // global static, [d]efined and initialized
+      0000000000000000 B j  // global non-static [B]ss, defined but not initialized
+      0000000000000004 b p  // global static [b]ss, defined but not initialized
+      0000000000000004 D q  // global non-static, [D]efined and initialized
+      ```
+      
+      ```cpp
+      // b.cpp
+      #include "a.hpp"
+      
+      int fb() { return echoTP<'b'>(); }
+      ```
+      
+      ```shell
+      0000000000000000 T fb()
+      0000000000000000 T int echoTP<98>()
+      ```
+      
+      ```cpp
+      // c.cpp
+      #include <iostream>
+      
+      #include "a.hpp"
+      
+      // un-included `extern int fb()`
+      extern int fb();
+      int fc() { return echoTP<'c'>(); }
+      
+      int main() {
+          // if you want to use `i`, you have to offer an accessable definition
+          // std::cout << i << std::endl;
+          std::cout << j << std::endl;
+          // std::cout << p << std::endl;s
+          std::cout << q << std::endl;
+          std::cout << s << std::endl;
+      
+          return fb() + fc();
+      }
+      ```
+      
+      ```shell
+                       U fb()  # undefined by `extern int fb()`
+                       U j     # undefined by `#include "a.hpp"`
+                       U q
+      0000000000000000 T fc()
+      0000000000000000 T int echoTP<99>()
+      ```
+      
+      ```shell
+      # symbols in the final linked executable file
+      00000000004015b0 T fb()
+      00000000004015d0 T fc()
+      0000000000402dd0 T int echoTP<98>()
+      0000000000402de0 T int echoTP<99>()
+      0000000000403010 d i
+      0000000000403014 D q
+      0000000000407030 B j
+      0000000000407034 b p
+      ```
+   
+   2. 是否静态限定到某一个文件或类中，与这个标识符是否是初始化有区别，这个区别类似常量限定与`register`类型限定、常量区的区别：前者只影响编译期对访问权限的校验，而是后者则影响变量被分配的 [内存布局](https://www.geeksforgeeks.org/memory-layout-of-c-program/) 区域（可以用`size obj.f`查看不同内存区域的分配情况），而未初始化的全局变量所在的BSS段的存在就是为了减小程序大小，只有在程序执行的时候才初始化为零值或计算得出，而已初始化的全局变量的初始值则可以看作是程序文本的一部分。PS. 函数的局部变量位于函数栈区，而动态内存分配在堆中。`new`和`delete`则是在类似C原生的`malloc`与`free`的用于动态堆内存分配与回收的`operator new`与`operator delete`之上，附加了类的构造和析构，以初始化类的对象、管理类所引用但位于类外的一般是操作系统管理的资源。
 
 2. 宏、预定义变量、编译选项
-
-    1. 宏定义有一些处理字符串的复杂语法，还有一些习惯写法，比如，用`do while(0)`编写代码块。
-
-    2. 断言`assert(true_expr)`是一种预处理宏。可以通过定义预处理变量 `NDEBUG`来关闭断言。此外，C++也有些由预处理器定义的魔术变量：`__FILE__`、`__LINE__`、`__FUNC__`和`__TIME__`等，可用来打日志。
-
-    3. 有些编译选项能提供堆栈保护（`fstack-protect-*`）和性能优化（`-O2`）等功能，而有些编译选项一般是默认要开启的（**`-g -O2`**，比如 CGO 在生成C接口的时候会自动为C编译期添加这两个编译选项，而自定义操作可能覆盖掉原有的默认配置），否则可能会造成问题。曾经遇到过的一个问题就是：在自定义CGO的`CFLAGS`变量的时候，覆盖了原有的`-O2`配置，造成的问题是调用点无法展开`inline`函数，`inline`函数变成一次普通的函数调用，但对应的函数定义又不会生成，因此，造成符号未定义的报错。通过为`go build`附加`-work`选项将中间文件的细节输出到`/tmp`下能了解更多CGO的生成细节，搭配`nm -C`和`gdb`的反汇编命令`disassemble`可以获知编译生成的库中各符号定义和使用的情况。P.S. 经常遇到`inline`等引发的告警，因此提醒自己使用这些特性前要多了解。
-
-        ```shell
-        CC 
-         -c # compile only
-         -o output_file_name
-         -D NDEBUG # 定义预处理变量NDEBUG
-        ```
+   
+   1. 宏定义有一些处理字符串的复杂语法，还有一些习惯写法，比如，用`do while(0)`编写代码块。
+   
+   2. 断言`assert(true_expr)`是一种预处理宏。可以通过定义预处理变量 `NDEBUG`来关闭断言。此外，C++也有些由预处理器定义的魔术变量：`__FILE__`、`__LINE__`、`__FUNC__`和`__TIME__`等，可用来打日志。
+   
+   3. 有些编译选项能提供堆栈保护（`fstack-protect-*`）和性能优化（`-O2`）等功能，而有些编译选项一般是默认要开启的（**`-g -O2`**，比如 CGO 在生成C接口的时候会自动为C编译期添加这两个编译选项，而自定义操作可能覆盖掉原有的默认配置），否则可能会造成问题。曾经遇到过的一个问题就是：在自定义CGO的`CFLAGS`变量的时候，覆盖了原有的`-O2`配置，造成的问题是调用点无法展开`inline`函数，`inline`函数变成一次普通的函数调用，但对应的函数定义又不会生成，因此，造成符号未定义的报错。通过为`go build`附加`-work`选项将中间文件的细节输出到`/tmp`下能了解更多CGO的生成细节，搭配`nm -C`和`gdb`的反汇编命令`disassemble`可以获知编译生成的库中各符号定义和使用的情况。P.S. 经常遇到`inline`等引发的告警，因此提醒自己使用这些特性前要多了解。
+      
+      ```shell
+      CC 
+       -c # compile only
+       -o output_file_name
+       -D NDEBUG # 定义预处理变量NDEBUG
+      ```
 
 ###### 作用域、生命周期、命名空间
 
 名字有作用域，对象（C++ 中的对象，具有超过面向对象编程概念里的对象的更宽泛的指涉，即，它意指程序中所有具体而非模板的数据，指针地址、函数指针也都算是数据、对象）有生命周期。声明的是名字，定义的是对象，声明和定义在同一处的叫初始化（构造等同于初始化，并暗含类类型成员的初始化）。名字的作用域是程序文本的一部分，影响编译期间名字在程序中的可见性。对象的生命周期体现在程序执行过程中对象在内存中的存留时间。
 
 1. 块（局部）作用域 —— 花括号（包括条件、循环语句块与函数，而`for`循环初始化处的定义与函数参数一样都属于自动变量）内为 **块作用域**，可能是最重要的一种作用域了。宽泛地理解，C系语言只有一种块作用域，块作用域可以嵌套而且块作用域内能访问作用域外的标识符，全局作用域只不过是所有块作用域之外而已，而函数由于是一等公民，所以函数是最外层的块作用域，而不是嵌入在调用上下文中的作用域。块内的变量作用域限定在块内，包括函数非引用限定的参数的局部变量的生命周期也限定在进程进入和走出块作用域期间（这是C/C++不许在局部或块作用域内返回局部对象地址的原因，抛出这样的异常也不行，因为被分配在栈上，它们在栈展开的时候就都被销毁了，引用将是无效的，这与会自动逃逸到堆上的Go不一样）。
-2. `static`变量 —— 不管是局部还是类的静态成员，都和存在于所有函数体之外的对象一样，生命周期长至进程结束，但作用域可能会被限定在“块”中。原生C曾使用**`static`**以将全局变量的作用域限定在所在文件或块中，C++ 11 后，代之以未命名的命名空间（与全局对象的生命周期相同，但作用域限定在命名空间所在的作用域中）。
+2. `static`变量 —— 不管是局部还是类的静态成员，都和存在于所有函数体之外的对象一样，生命周期长至进程结束，但作用域可能会被限定在“块”中。原生C曾使用**`static`**以将全局变量的作用域限定在所在文件或块中，现代C++ 后，代之以未命名的命名空间（与全局对象的生命周期相同，但作用域限定在命名空间所在的作用域中）。
 3. 命名空间 —— 命名空间是一种作用域，而类是一种 **命名空间**。全局命名空间可以用`::g_Name`来引用，而类中可以用`using`重命名一个类型，即为类的成员类型。除了未命名的命名空间之外，命名空间只能用于包含像全局变量、类定义、函数这样的全局对象，因为它是一种用于防止大型程序中的名字污染的机制，对于原本就外部不可见的局部对象来说，命名空间也是多此一举的，所以C++规定它只能收纳全局的名字，并且不能定义在函数与类内部。P.S. 通过`using`直接引用到具体的函数不会导致同类型函数的冲突（使用时加上命名空间即可），但`using`指示一个函数名会将所有同名函数加入同一个重载集合中，就会导致同类型函数的冲突。
-
-
 
 #### II
 
@@ -537,132 +612,132 @@
 1. 构造与析构的次序 —— 构造，就是对象的数据成员定义的过程，数据成员将按照其在类中出现的顺序进行构造（成员对象的析构将按相反的顺序被调用）。P.S. 参数的构造与析构发生于此函数调用者的上下文之中，而不是这个函数的上下文，但局部变量的销毁在将要退出栈的时候。而在继承体系内，子类成员先构造，但析构情况稍微有些复杂：如果父类的析构函数是虚函数，则析构按照构造的逆序进行，即先析构（销毁从）父类（继承来的成员），再析构子类，且析构具有多态性；如果父类的析构不是虚函数，则父类指针或引用将不具有多态性，但子类对象的析构依然会去析构父类。另外，关于构造与虚函数有一个原则是不要在构造函数中调用虚函数，因为在子类的父类部分构造的时候，由于子类尚未构造完成而不具有多态性，可能造成与预期不符合的情况。PS. 在已定义了构造函数的情况下，可以用`= default`来生成所需要的默认构造函数的定义。
 
 2. 初始化方式
-
-    1. 初始值列表中的显式构造将优先被调用，否则查看类内初始化（某些编译器可能不支持类内初始化，所以，通常不在类内初始化，除非是常量静态成员才有必要在 **类内初始化**），再否则就尝试调用成员`public`的默认构造函数，再再否则，成员的值将是未定义的，只能依赖构造函数函数体中的赋值操作。
-    2. 对于只能进行初始化的`const`或引用限定的数据成员来说，**初始值列表** 是必须的。另外，初始值列表位于构造函数体外，为了处理初始值列表操作过程中可能产生的异常，可以用一种特殊的`T:T(arg) try: member(arg) {} catch {}`语法；而如果是构造函数的参数构造失败，则异常处理的责任属于调用者，因为填充实参的操作就发生在调用者的上下文，此时还没有被调者。 常量限定的对象，只能调用其`const`限定的方法。
+   
+   1. 初始值列表中的显式构造将优先被调用，否则查看类内初始化（某些编译器可能不支持类内初始化，所以，通常不在类内初始化，除非是常量静态成员才有必要在 **类内初始化**），再否则就尝试调用成员`public`的默认构造函数，再再否则，成员的值将是未定义的，只能依赖构造函数函数体中的赋值操作。
+   2. 对于只能进行初始化的`const`或引用限定的数据成员来说，**初始值列表** 是必须的。另外，初始值列表位于构造函数体外，为了处理初始值列表操作过程中可能产生的异常，可以用一种特殊的`T:T(arg) try: member(arg) {} catch {}`语法；而如果是构造函数的参数构造失败，则异常处理的责任属于调用者，因为填充实参的操作就发生在调用者的上下文，此时还没有被调者。 常量限定的对象，只能调用其`const`限定的方法。
 
 3. 隐式构造 —— 除了显式定义一个类的对象会触发构造以外，有很多隐式构造的场景：隐式类型转换（类型转换依赖构造函数来实现；另外，想要在参数传递中禁用参数类型的隐式类型转换可以给形参的构造函数加一个`explict`限定，使其更偏向强类型），函数非引用限定的参数传递与返回，数组、聚合类（`std::pair`，C++中，`class`与`struct`唯一的区别就是`class`中默认的访问控制权限是`private`，而`struct`是`public`，建议用`struct`定义比较简单的聚合类）、可变参数、容器的列表初始化（除了初始化结构体成员外，列表初始化的本质以初始化列表`std:initializer_list<T>`为形参），`new`。
 
 4. 当我们使用`new`这个关键字的时候：首先，类的`operator new`被调用以分配内存空间，然后，进行类的默认构造，最后，返回对象指针。`operator new`有三种 [重载](https://www.cplusplus.com/reference/new/operator%20new/) 形式，以设定是否抛出异常（`std::bad_alloc`，不抛出异常所用的`std::nothrow_t`类型的字面值`std::nothrow`只是用来区分重载版本的。注意：它不是带有一个`bool`类型参数的重载版本的`noexcept`，而是类似Java与早期的C++版本中函数的`throw`声明；以及，有一个同名的运算符来判断一个表达式会否抛出异常，与`sizeof`类似，它也不会计算表达式，而是静态地在编译期就获取到一个布尔类型的右值常量），以及是否真的需要分配这个类大小的空间而不仅仅只是为了调用默认构造函数（不分配大小的以一个既有的指针为额外的入参，不论地址所指向的内存块是分配在堆还是栈上都能完成类对象的构造）。P.S. 这里带`void *`参数的重载版本的功能是C++给定的，但C++允许提供自定义其他类型为参数的`new`操作符用来控制空间分配。
-
-    ```cpp
-    /* `new` operator */
-    
-    // i may throw (but only) std::bad_alloc
-    void* operator new (std::size_t size) throw (std::bad_alloc);
-    // i throw nothing, and return 0 if fail to alloc
-    void* operator new (std::size_t size, const std::nothrow_t& nothrow_value) throw();
-    // i alloc nothing
-    void* operator new (std::size_t size, void* ptr) throw();
-    
-    // examples:
-    auto p = new Type;
-    auto p = new (std::nothrow) Type;
-    new (p) Type;
-    ```
+   
+   ```cpp
+   /* `new` operator */
+   
+   // i may throw (but only) std::bad_alloc
+   void* operator new (std::size_t size) throw (std::bad_alloc);
+   // i throw nothing, and return 0 if fail to alloc
+   void* operator new (std::size_t size, const std::nothrow_t& nothrow_value) throw();
+   // i alloc nothing
+   void* operator new (std::size_t size, void* ptr) throw();
+   
+   // examples:
+   auto p = new Type;
+   auto p = new (std::nothrow) Type;
+   new (p) Type;
+   ```
 
 5. 析构 —— 与构造相反，析构的作用是释放类占用的 **资源**（如在初始化对象或方法调用过程中，申请了动态内存或文件操作符等）；而数据成员所占内存的回收（除非用`new`创建才需要`delete`指针以释放所指向的内存空间，否则）不归开发者管。析构可以被显式调用（以显示地释放这些资源），但一般来说，依赖在该类型的对象被销毁前，析构函数的自动调用就够了（因为是一个自动调用的过程，因而最好不要抛出析构函数自己不能处理掉的异常）。而释放一个对象的场景，也与构造相反：变量离开作用域、成员随其对象被销毁、元素随其容器被销毁、动态内存的`delete`以及临时对象随其所在表达式结束而被销毁。析构、成员对象销毁的顺序是构造过程的逆序。
-
-    ```cpp
-    #include <iostream>
-    
-    /* [test] the order of invocation of constructors and destructors */
-    
-    class IN1 {
-        int i = 1;
-    
-       public:
-        IN1() { std::cout << "IN1() done." << std::endl; }
-        IN1(int i) : i(i) { std::cout << "IN1(int) " << i << " done." << std::endl; }
-        ~IN1() { std::cout << "~IN1() done." << std::endl; }
-    };
-    class IN2 {
-        int i = 2;
-    
-       public:
-        IN2() { std::cout << "IN2() done." << std::endl; }
-        IN2(int i) : i(i) { std::cout << "IN2(int) " << i << " done." << std::endl; }
-        ~IN2() { std::cout << "~IN2() done." << std::endl; }
-    };
-    class IN3 {
-       public:
-        IN3() { std::cout << "IN3() done." << std::endl; }
-        ~IN3() { std::cout << "~IN3() done." << std::endl; }
-    };
-    class OUT {
-        IN3 in3;
-        IN2 in2;
-        IN1 in1;
-    
-       public:
-        OUT() : in1(1), in2(2) {
-            new (&in3) IN3();  // only re-construct in3, which is a data member
-            std::cout << "OUT() done." << std::endl;
-        }
-        ~OUT() {
-            in3.~IN3();  // only destruct in3
-            std::cout << "~OUT() done." << std::endl;
-        }
-    };
-    
-    class father {
-       public:
-        father() { std::cout << "father() called " << cnt++ << " times, done." << std::endl; }
-        // virtual
-        ~father() { std::cout << "~father() done." << std::endl; }
-    
-       public:
-        static int cnt;
-    };
-    
-    int father::cnt = 1;
-    
-    class son : public father {
-       public:
-        son() { std::cout << "son() done." << std::endl; }
-        ~son() { std::cout << "~son() done." << std::endl; }
-    };
-    
-    int main() {
-        OUT out;
-    
-        // the ~son() will not be executed without virtual on ~father().
-        std::cout << "1. " << std::endl;
-        father *pf = new son();
-        pf->~father();
-    
-        // ~son() will execute the ~father() any way.
-        std::cout << "2. " << std::endl;
-        son().~son();
-    
-        std::cout << "main() done." << std::endl;
-    }
-    
-    /* output
-    IN3() done.
-    IN2(int) 2 done.
-    IN1(int) 1 done.
-    IN3() done.
-    OUT() done.
-    1.
-    father() called 1 times, done.
-    son() done.
-    ~father() done.
-    2.
-    father() called 2 times, done.
-    son() done.
-    ~son() done.
-    ~father() done.
-    ~son() done.
-    ~father() done.
-    main() done.
-    ~IN3() done.
-    ~OUT() done.
-    ~IN1() done.
-    ~IN2() done.
-    ~IN3() done.
-    */
-    ```
+   
+   ```cpp
+   #include <iostream>
+   
+   /* [test] the order of invocation of constructors and destructors */
+   
+   class IN1 {
+       int i = 1;
+   
+      public:
+       IN1() { std::cout << "IN1() done." << std::endl; }
+       IN1(int i) : i(i) { std::cout << "IN1(int) " << i << " done." << std::endl; }
+       ~IN1() { std::cout << "~IN1() done." << std::endl; }
+   };
+   class IN2 {
+       int i = 2;
+   
+      public:
+       IN2() { std::cout << "IN2() done." << std::endl; }
+       IN2(int i) : i(i) { std::cout << "IN2(int) " << i << " done." << std::endl; }
+       ~IN2() { std::cout << "~IN2() done." << std::endl; }
+   };
+   class IN3 {
+      public:
+       IN3() { std::cout << "IN3() done." << std::endl; }
+       ~IN3() { std::cout << "~IN3() done." << std::endl; }
+   };
+   class OUT {
+       IN3 in3;
+       IN2 in2;
+       IN1 in1;
+   
+      public:
+       OUT() : in1(1), in2(2) {
+           new (&in3) IN3();  // only re-construct in3, which is a data member
+           std::cout << "OUT() done." << std::endl;
+       }
+       ~OUT() {
+           in3.~IN3();  // only destruct in3
+           std::cout << "~OUT() done." << std::endl;
+       }
+   };
+   
+   class father {
+      public:
+       father() { std::cout << "father() called " << cnt++ << " times, done." << std::endl; }
+       // virtual
+       ~father() { std::cout << "~father() done." << std::endl; }
+   
+      public:
+       static int cnt;
+   };
+   
+   int father::cnt = 1;
+   
+   class son : public father {
+      public:
+       son() { std::cout << "son() done." << std::endl; }
+       ~son() { std::cout << "~son() done." << std::endl; }
+   };
+   
+   int main() {
+       OUT out;
+   
+       // the ~son() will not be executed without virtual on ~father().
+       std::cout << "1. " << std::endl;
+       father *pf = new son();
+       pf->~father();
+   
+       // ~son() will execute the ~father() any way.
+       std::cout << "2. " << std::endl;
+       son().~son();
+   
+       std::cout << "main() done." << std::endl;
+   }
+   
+   /* output
+   IN3() done.
+   IN2(int) 2 done.
+   IN1(int) 1 done.
+   IN3() done.
+   OUT() done.
+   1.
+   father() called 1 times, done.
+   son() done.
+   ~father() done.
+   2.
+   father() called 2 times, done.
+   son() done.
+   ~son() done.
+   ~father() done.
+   ~son() done.
+   ~father() done.
+   main() done.
+   ~IN3() done.
+   ~OUT() done.
+   ~IN1() done.
+   ~IN2() done.
+   ~IN3() done.
+   */
+   ```
 
 ###### 访问控制、友元、类的作用域
 
@@ -1053,8 +1128,6 @@ operator<<(A &&a): os << this.i=4, done.
 
 对象的`const`、`&`限定 —— 访问控制限定的是外部的类访问类内成员的权限，而引用与`const`限定符是为了声明类方法对类数据成员的修改与否。常量成员函数（`const`限定）不修改对象的数据成员，要在`const`限定声明的方法内修改一个数据成员，可以给这个数据成员加一个`mutable`声明。`&`和`&&`（左值与右值引用，一旦标记其一，所有同签名方法就都要做标记）限定符声明对象是一个左值或右值。`const`与引用限定都可以区分重载版本，编译器会选出与对象的类型限定最匹配的方法。注：由于早期版本没有引用限定特性，就会出现，比如，`str1+str2="wow"`的情况了，因为`string`没有限定赋值运算符可作用的对象只能是左值引用类型的。
 
-
-
 #### III
 
 ###### 容器、迭代器、泛型算法库
@@ -1250,8 +1323,6 @@ int main() {
 }
 ```
 
-
-
 #### ...
 
 ###### 正则表达式
@@ -1263,34 +1334,33 @@ int main() {
 1. 通用编程语言支持的字符：普通字符（包括空格）和 通用编程语言的转义字符（包括制表符、换行符、换页符）
 
 2. 正则表达式占据的字符：
+   
+   1. 表示匹配的规则，被正则占用，想表示原字符要加转义符，需要转义的符号有：
+      
+      1. 字符个数的限定：`* +` `{n, m}` `?` 
+         
+          `?`还用于表示非捕获，可能要结合`: ! <`之一
+      
+      2. 字符集：`[]`
+      
+      3. 子表达式：`()`
+      
+      4. 行首行尾：`^`（还用于表示非匹配）、`$`
+      
+      5. 或：`|`
+   
+   2. 正则表达式定义的转义符号，类似通用编程语言的，用来表示一类符号（`\w` `\d` `\s` `\b` 等），为了与通用编程语言的转移符号相区别，可使用`raw`字符串以关闭编程语言层面的转义。对于非正则表达式定义的转移符号，反斜杠将会被忽略。
+      
+       `\b` 匹配单词的边界，`\B` 匹配非单词字符的边界，单词为`\w`（包括字母、下划线与`\d`），边界意为 `\s`（包括空格与制表符、换行符等），`.` 意为 `[^\n\r]`（正则表达式一般匹配一行）
 
-    1. 表示匹配的规则，被正则占用，想表示原字符要加转义符，需要转义的符号有：
-
-        1. 字符个数的限定：`* +` `{n, m}` `?` 
-
-            `?`还用于表示非捕获，可能要结合`: ! <`之一
-
-        2. 字符集：`[]`
-
-        3. 子表达式：`()`
-
-        4. 行首行尾：`^`（还用于表示非匹配）、`$`
-
-        5. 或：`|`
-
-    2. 正则表达式定义的转义符号，类似通用编程语言的，用来表示一类符号（`\w` `\d` `\s` `\b` 等），为了与通用编程语言的转移符号相区别，可使用`raw`字符串以关闭编程语言层面的转义。对于非正则表达式定义的转移符号，反斜杠将会被忽略。
-
-        `\b` 匹配单词的边界，`\B` 匹配非单词字符的边界，单词为`\w`（包括字母、下划线与`\d`），边界意为 `\s`（包括空格与制表符、换行符等），`.` 意为 `[^\n\r]`（正则表达式一般匹配一行）
-    
 3. 不同的正则标准会用到一些不同的自定义字符集，比如有的标准使用`[[::Alpha:]]`这样的字符串表示字母。
 
 :two: 正则表达式中 [不] 捕获子表达式的规则：
 
 1. 在正则表达式中，反斜杠加数字序号，表示被捕获的子表达式（一旦匹配完成了，一般就用美元符号`$`获取该子表达式，比如在IDE的字符串替换、或者编程语言基于正则匹配的子串替换中使用）
 2. `?`表示**非捕获**，`?`结合`:`表示不捕获但匹配，`?`结合`= ! <`表示不捕获也不匹配（预查是否匹配，不消耗字符）
-    0. `(?:exp)` 不捕获但匹配，比如 `fl(?:y|ies)`匹配单复数的苍蝇的英文
-    1. `exp1(?=exp2)`： 正向肯定预查（后面是 `exp2` 吧？）
-    2. `exp1(?!exp2)`： 正向否定预查（后面不是 `exp2` 吧？）
-    3. `(?<=exp2)exp1`： 反向肯定预查（前面是 `exp2` 吧？）
-    4. `(?<!exp2)exp1`： 反向否定预查（前面不是 `exp2`）
-
+   0. `(?:exp)` 不捕获但匹配，比如 `fl(?:y|ies)`匹配单复数的苍蝇的英文
+   1. `exp1(?=exp2)`： 正向肯定预查（后面是 `exp2` 吧？）
+   2. `exp1(?!exp2)`： 正向否定预查（后面不是 `exp2` 吧？）
+   3. `(?<=exp2)exp1`： 反向肯定预查（前面是 `exp2` 吧？）
+   4. `(?<!exp2)exp1`： 反向否定预查（前面不是 `exp2`）

@@ -1,2 +1,4 @@
 /.ssh/
 *.pdf
+.idea
+/.vscode/
